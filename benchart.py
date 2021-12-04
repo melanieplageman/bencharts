@@ -1,17 +1,12 @@
 #!/usr/local/bin/python3
 
 import copy
-from types import SimpleNamespace
-
-class GroupAttributes(SimpleNamespace):
-    pass
 
 class Run:
     def __init__(self, id, data, metadata):
         self.id = id
         self.data = data
         self.metadata = metadata
-        self.original_metadata = copy.deepcopy(self.metadata)
 
     def __eq__(self, other):
         return self.metadata == other.metadata
@@ -20,7 +15,7 @@ class Run:
         return hash(str(self.metadata))
 
     def __repr__(self):
-        return "Run %s: %s\n" % (str(self.id), str(self.original_metadata))
+        return "Run %s: %s\n" % (str(self.id), str(self.metadata))
 
 class Chart:
     def __init__(self, attrs, runs):
