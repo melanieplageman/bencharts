@@ -2,6 +2,13 @@
 
 import copy
 
+def compare_except_keygen(runs, except_items):
+    dictionary = {}
+    for run in runs:
+        run_string = ''.join(k + str(v) for k, v in run.metadata.items() if k not in except_items)
+        dictionary.setdefault(run_string, []).append(run)
+    return dictionary
+
 class Run:
     def __init__(self, id, data, metadata):
         self.id = id
@@ -24,13 +31,6 @@ class Chart:
 
     def __repr__(self):
         return f'Chart {self.attrs}'
-
-def compare_except_keygen(runs, except_items):
-    dictionary = {}
-    for run in runs:
-        run_string = ''.join(k + str(v) for k, v in run.metadata.items() if k not in except_items)
-        dictionary.setdefault(run_string, []).append(run)
-    return dictionary
 
 class Exhibit:
     def __init__(self, eid, runs):
