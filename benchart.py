@@ -2,7 +2,7 @@
 
 import copy
 
-def compare_except_keygen(runs, except_items):
+def map_runs(runs, except_items):
     dictionary = {}
     for run in runs:
         run_string = ''.join(k + str(v) for k, v in run.metadata.items() if k not in except_items)
@@ -53,12 +53,12 @@ class BenchArt:
         self.chart_attrs.append(key)
 
     def run(self):
-        exhibit_groups = compare_except_keygen(self.runs, self.exhibit_attrs + self.chart_attrs)
+        exhibit_groups = map_runs(self.runs, self.exhibit_attrs + self.chart_attrs)
         
         exhibits = []
         all_exhibit_runs = list(exhibit_groups.values())
         for i in range(len(all_exhibit_runs)):
             exhibits.append(Exhibit(i,
-                compare_except_keygen(all_exhibit_runs[i], self.chart_attrs)))
+                map_runs(all_exhibit_runs[i], self.chart_attrs)))
 
         return exhibits
