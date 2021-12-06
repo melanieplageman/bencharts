@@ -1,19 +1,53 @@
 #!/usr/local/bin/python3
 
 import copy
+from collections.abc import Mapping
+
+class RunMetadata(Mapping):
+    def __init__(self, metadata):
+        self.metadata = metadata
+
+    def __getitem__(self, key):
+        return self.metadata[key]
+
+    def __iter__(self):
+        return iter(self.metadata)
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __eq__(self, other):
+        return self.metadata == other.metadata
+
+    def __hash__(self):
+        return hash(frozenset(self.metadata.items()))
+
+    def __repr__(self):
+        return repr(self.metadata)
+
+    def keys(self):
+        return self.metadata.keys()
+
+    def items(self):
+        return self.metadata.items()
+
+    def values(self):
+        return self.metadata.values()
+
+    def excepted_metadata(self, except_keys):
+        return RunMetadata({ k: v for k, v in self.metadata.items() if k not in except_keys })
 
 def map_runs(runs, except_items):
     dictionary = {}
     for run in runs:
-        run_string = ''.join(k + str(v) for k, v in run.metadata.items() if k not in except_items)
-        dictionary.setdefault(run_string, []).append(run)
+        dictionary.setdefault(run.metadata.excepted_metadata(except_items), []).append(run)
     return dictionary
 
 class Run:
     def __init__(self, id, data, metadata):
         self.id = id
         self.data = data
-        self.metadata = metadata
+        self.metadata = RunMetadata(metadata)
 
     def __eq__(self, other):
         return self.metadata == other.metadata
