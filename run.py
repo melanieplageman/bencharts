@@ -62,5 +62,6 @@ cohort = benchart.run()
 
 for exhibit in cohort:
     pprint.pprint(exhibit)
-    pprint.pprint(exhibit.runs)
+    for chart in exhibit.charts:
+        print(chart.special_run_print())
 

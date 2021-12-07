@@ -58,18 +58,46 @@ class Run:
     def __repr__(self):
         return "Run %s: %s\n" % (str(self.id), str(self.metadata))
 
+    def label(self, label_attrs):
+        out = ''
+        for k, v in self.metadata.items():
+            if k in label_attrs:
+                out += f' {k}: {v}\n'
+        out += f'{self}\n'
+        return out
+
 class Chart:
-    def __init__(self, attrs, runs):
-        self.attrs = attrs
+    def __init__(self, label_attrs, chart_attrs, chart_group_metadata, runs):
+        self.chart_attrs = chart_attrs
         self.runs = runs
+        self.label = ''
+        for k, v in chart_group_metadata.items():
+            if k in label_attrs:
+                self.label += f' {k}: {v}'
 
     def __repr__(self):
-        return f'Chart {self.attrs}'
+        return f'Chart {self.label}'
+
+    def special_run_print(self):
+        out = f'{self}\n'
+        for run in self.runs:
+            out += run.label(self.chart_attrs)
+        return out
 
 class Exhibit:
-    def __init__(self, eid, runs):
+    def __init__(self, eid, exhibit_attrs, chart_attrs, runs):
         self.id = eid
-        self.runs = runs
+        self.chart_groups = map_runs(runs, chart_attrs)
+        self.charts = []
+        chart_label_attrs = []
+        for attr in exhibit_attrs:
+            if attr not in chart_attrs:
+                chart_label_attrs.append(attr)
+
+        for chart_group_metadata, chart_group_runs in self.chart_groups.items():
+            self.charts.append(Chart(chart_label_attrs, chart_attrs,
+                chart_group_metadata,
+                chart_group_runs))
 
     def __repr__(self):
         return f'Exhibit {self.id}'
@@ -92,7 +120,8 @@ class BenchArt:
         exhibits = []
         all_exhibit_runs = list(exhibit_groups.values())
         for i in range(len(all_exhibit_runs)):
-            exhibits.append(Exhibit(i,
-                map_runs(all_exhibit_runs[i], self.chart_attrs)))
+            exhibits.append(
+                Exhibit(i, self.exhibit_attrs, self.chart_attrs, all_exhibit_runs[i])
+            )
 
         return exhibits
