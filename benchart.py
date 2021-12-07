@@ -67,13 +67,19 @@ class Run:
         return out
 
 class Chart:
-    def __init__(self, label_attrs, chart_attrs, chart_group_metadata, runs):
+    def __init__(self, exhibit_attrs, chart_attrs, chart_group_metadata, runs):
         self.chart_attrs = chart_attrs
+        self.exhibit_attrs = exhibit_attrs
         self.runs = runs
-        self.label = ''
-        for k, v in chart_group_metadata.items():
-            if k in label_attrs:
-                self.label += f' {k}: {v}'
+        self.chart_group_metadata = chart_group_metadata
+
+    @property
+    def label(self):
+        label = ''
+        for k, v in self.chart_group_metadata.items():
+            if k in self.exhibit_attrs:
+                label += f' {k}: {v}'
+        return label
 
     def __repr__(self):
         return f'Chart {self.label}'
