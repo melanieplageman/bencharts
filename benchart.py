@@ -3,10 +3,14 @@
 from metadata import RunMetadata
 import copy
 
-def map_runs(runs, except_items):
+def map_runs(runs, attrs, shared=True):
     dictionary = {}
     for run in runs:
-        dictionary.setdefault(run.metadata.shared_metadata(except_items), []).append(run)
+        if shared:
+            dictionary.setdefault(run.metadata.shared_metadata(attrs), []).append(run)
+        else:
+            dictionary.setdefault(run.metadata.except_metadata(attrs), []).append(run)
+
     return dictionary
 
 class Run:
@@ -25,27 +29,21 @@ class Run:
         return "Run %s: %s\n" % (str(self.id), str(self.metadata))
 
     def label(self, label_attrs):
-        out = ''
-        for k, v in self.metadata.items():
-            if k in label_attrs:
-                out += f' {k}: {v}\n'
-        out += f'{self}\n'
-        return out
+        plot_label = self.metadata.except_metadata(label_attrs).pretty_print()
+        return f'{plot_label} {self}\n'
 
 class Chart:
-    def __init__(self, exhibit_attrs, chart_attrs, chart_group_metadata, runs):
+    def __init__(self, exhibit_attrs, chart_attrs, shared_metadata, runs):
         self.chart_attrs = chart_attrs
         self.exhibit_attrs = exhibit_attrs
+
         self.runs = runs
-        self.chart_group_metadata = chart_group_metadata
+        self.shared_metadata = shared_metadata
 
     @property
     def label(self):
-        label = ''
-        for k, v in self.chart_group_metadata.items():
-            if k in self.exhibit_attrs:
-                label += f' {k}: {v}'
-        return label
+        chart_labels = map_runs(self.runs, self.exhibit_attrs, shared=False).keys()
+        return ''.join([chart_label.pretty_print() for chart_label in chart_labels])
 
     def __repr__(self):
         return f'Chart {self.label}'
@@ -57,22 +55,22 @@ class Chart:
         return out
 
 class Exhibit:
-    def __init__(self, eid, exhibit_attrs, chart_attrs, runs):
-        self.id = eid
-        self.runs = runs
-        self.charts = []
+    def __init__(self, eid, exhibit_attrs, chart_attrs):
         self.chart_attrs = chart_attrs
         self.exhibit_attrs = exhibit_attrs
+
+        self.charts = []
+        self.id = eid
 
     def __repr__(self):
         return f'Exhibit {self.id}'
 
-    def make_charts(self):
-        chart_groups = map_runs(self.runs, self.chart_attrs)
+    def make_charts(self, runs):
+        chart_groups = map_runs(runs, self.chart_attrs)
 
-        for chart_group_metadata, chart_group_runs in chart_groups.items():
+        for shared_metadata, chart_group_runs in chart_groups.items():
             self.charts.append(Chart(self.exhibit_attrs, self.chart_attrs,
-                chart_group_metadata,
+                shared_metadata,
                 chart_group_runs))
         return self
 
@@ -95,8 +93,8 @@ class BenchArt:
         all_exhibit_runs = list(exhibit_groups.values())
         for i in range(len(all_exhibit_runs)):
             exhibits.append(
-                Exhibit(i, self.exhibit_attrs, self.chart_attrs,
-                        all_exhibit_runs[i]).make_charts()
+                Exhibit(i, self.exhibit_attrs, self.chart_attrs
+                        ).make_charts(all_exhibit_runs[i])
             )
 
         return exhibits
