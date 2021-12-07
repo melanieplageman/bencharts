@@ -93,20 +93,22 @@ class Chart:
 class Exhibit:
     def __init__(self, eid, exhibit_attrs, chart_attrs, runs):
         self.id = eid
-        self.chart_groups = map_runs(runs, chart_attrs)
+        self.runs = runs
         self.charts = []
-        chart_label_attrs = []
-        for attr in exhibit_attrs:
-            if attr not in chart_attrs:
-                chart_label_attrs.append(attr)
-
-        for chart_group_metadata, chart_group_runs in self.chart_groups.items():
-            self.charts.append(Chart(chart_label_attrs, chart_attrs,
-                chart_group_metadata,
-                chart_group_runs))
+        self.chart_attrs = chart_attrs
+        self.exhibit_attrs = exhibit_attrs
 
     def __repr__(self):
         return f'Exhibit {self.id}'
+
+    def make_charts(self):
+        chart_groups = map_runs(self.runs, self.chart_attrs)
+
+        for chart_group_metadata, chart_group_runs in chart_groups.items():
+            self.charts.append(Chart(self.exhibit_attrs, self.chart_attrs,
+                chart_group_metadata,
+                chart_group_runs))
+        return self
 
 class BenchArt:
     def __init__(self, runs):
@@ -127,7 +129,8 @@ class BenchArt:
         all_exhibit_runs = list(exhibit_groups.values())
         for i in range(len(all_exhibit_runs)):
             exhibits.append(
-                Exhibit(i, self.exhibit_attrs, self.chart_attrs, all_exhibit_runs[i])
+                Exhibit(i, self.exhibit_attrs, self.chart_attrs,
+                        all_exhibit_runs[i]).make_charts()
             )
 
         return exhibits
