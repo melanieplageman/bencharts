@@ -34,13 +34,13 @@ class RunMetadata(Mapping):
     def values(self):
         return self.metadata.values()
 
-    def excepted_metadata(self, except_keys):
+    def shared_metadata(self, except_keys):
         return RunMetadata({ k: v for k, v in self.metadata.items() if k not in except_keys })
 
 def map_runs(runs, except_items):
     dictionary = {}
     for run in runs:
-        dictionary.setdefault(run.metadata.excepted_metadata(except_items), []).append(run)
+        dictionary.setdefault(run.metadata.shared_metadata(except_items), []).append(run)
     return dictionary
 
 class Run:
