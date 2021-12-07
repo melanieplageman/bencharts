@@ -28,10 +28,6 @@ class Run:
     def __repr__(self):
         return "Run %s: %s\n" % (str(self.id), str(self.metadata))
 
-    def label(self, label_attrs):
-        plot_label = self.metadata.except_metadata(label_attrs).pretty_print()
-        return f'{plot_label} {self}\n'
-
 class Chart:
     def __init__(self, exhibit_attrs, chart_attrs, shared_metadata, runs):
         self.chart_attrs = chart_attrs
@@ -49,10 +45,10 @@ class Chart:
         return f'Chart {self.label}'
 
     def special_run_print(self):
-        out = f'{self}\n'
-        for run in self.runs:
-            out += run.label(self.chart_attrs)
-        return out
+        chart_str = f'{self}\n'
+        runs_str = ''.join([f'{run.metadata.except_metadata(self.chart_attrs).pretty_print()} {run}\n'
+                for run in self.runs])
+        return chart_str + runs_str
 
 class Exhibit:
     def __init__(self, eid, exhibit_attrs, chart_attrs):
