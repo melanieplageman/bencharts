@@ -1,23 +1,14 @@
 #!/usr/local/bin/python3
 
 from metadata import RunMetadata
-import copy
-
-def map_runs(runs, attrs, shared=True):
-    dictionary = {}
-    for run in runs:
-        if shared:
-            dictionary.setdefault(run.metadata.shared_metadata(attrs), []).append(run)
-        else:
-            dictionary.setdefault(run.metadata.except_metadata(attrs), []).append(run)
-
-    return dictionary
+import pprint
 
 class Run:
     def __init__(self, id, data, metadata):
         self.id = id
         self.data = data
         self.metadata = RunMetadata(metadata)
+        self.label = None
 
     def __eq__(self, other):
         return self.metadata == other.metadata
@@ -26,71 +17,86 @@ class Run:
         return hash(str(self.metadata))
 
     def __repr__(self):
-        return "Run %s: %s\n" % (str(self.id), str(self.metadata))
+        if self.label:
+            return f'Label: {self.label}: Run {str(self.id)}: {str(self.metadata)}\n'
+        else:
+            return "Run %s: %s\n" % (str(self.id), str(self.metadata))
 
-class Chart:
-    def __init__(self, exhibit_attrs, chart_attrs, shared_metadata, runs):
-        self.chart_attrs = chart_attrs
-        self.exhibit_attrs = exhibit_attrs
+    def set_label(self, label_step):
+        label_attrs = label_step.attrs
+        self.label = self.metadata.except_metadata(label_attrs)
 
+class Step:
+    def __init__(self, attrs):
+        self.attrs = attrs
+
+    # return a list of output groups
+    def use(self, input_group):
+        output_groups = {}
+        for run in input_group.runs:
+            output_groups.setdefault(run.metadata.except_metadata(self.attrs), []).append(run)
+
+        result_rgs = [RunGroup(sm, runs) for sm, runs in output_groups.items()]
+        return result_rgs
+
+    def __repr__(self):
+        return f'Step attributes: {self.attrs}'
+
+class RunGroup:
+    def __init__(self, shared_metadata, runs):
+        self.metadata = shared_metadata
         self.runs = runs
-        self.shared_metadata = shared_metadata
-
-    @property
-    def label(self):
-        chart_labels = map_runs(self.runs, self.exhibit_attrs, shared=False).keys()
-        return ''.join([chart_label.pretty_print() for chart_label in chart_labels])
 
     def __repr__(self):
-        return f'Chart {self.label}'
-
-    def special_run_print(self):
-        chart_str = f'{self}\n'
-        runs_str = ''.join([f'{run.metadata.except_metadata(self.chart_attrs).pretty_print()} {run}\n'
-                for run in self.runs])
-        return chart_str + runs_str
-
-class Exhibit:
-    def __init__(self, eid, exhibit_attrs, chart_attrs):
-        self.chart_attrs = chart_attrs
-        self.exhibit_attrs = exhibit_attrs
-
-        self.charts = []
-        self.id = eid
-
-    def __repr__(self):
-        return f'Exhibit {self.id}'
-
-    def make_charts(self, runs):
-        chart_groups = map_runs(runs, self.chart_attrs)
-
-        for shared_metadata, chart_group_runs in chart_groups.items():
-            self.charts.append(Chart(self.exhibit_attrs, self.chart_attrs,
-                shared_metadata,
-                chart_group_runs))
-        return self
+        return f'Metadata: {self.metadata}\nRuns:\n{self.runs}'
 
 class BenchArt:
     def __init__(self, runs):
         self.runs = runs
-        self.exhibit_attrs = []
-        self.chart_attrs = []
+        # We assume loader has standardized all runs to have the same keys
+        self.all_attrs = runs[0].metadata.keys()
+        self.user_steps = []
 
-    def exhibit(self, key):
-       self.exhibit_attrs.append(key) 
+    # these must be appended in order
+    def part(self, attrs):
+        self.user_steps.append(Step(set([attrs])))
 
-    def chart(self, key):
-        self.chart_attrs.append(key)
+    # returns a set of string, which are the attributes on which all runs agree
+    # e.g. {"ver", "hp"}
+    def get_all_shared_attrs(self):
+        all_shared_attrs = set()
+        for attr in self.all_attrs:
+            value = self.runs[0].metadata[attr]
+            if all(run.metadata[attr] == value for run in self.runs):
+                all_shared_attrs.add(attr)
 
+        return all_shared_attrs
+
+    # runs is a list of Runs
+    # user_groups is a list of set(str), for example [{"ver", "hp"}, {"bfa"}]
     def run(self):
-        exhibit_groups = map_runs(self.runs, self.exhibit_attrs + self.chart_attrs)
-        
-        exhibits = []
-        all_exhibit_runs = list(exhibit_groups.values())
-        for i in range(len(all_exhibit_runs)):
-            exhibits.append(
-                Exhibit(i, self.exhibit_attrs, self.chart_attrs
-                        ).make_charts(all_exhibit_runs[i])
-            )
+        steps = []
+        # Find all the attributes on which all runs agree
+        all_shared_attrs = self.get_all_shared_attrs()
+        steps.append(Step(all_shared_attrs))
 
-        return exhibits
+        # Find all the attributes which are neither agreed upon by all nor in
+        # user-specified attributes
+        all_user_specified_attrs = set()
+        for user_step in self.user_steps:
+            all_user_specified_attrs.update(user_step.attrs)
+        steps.append(Step(self.all_attrs - all_shared_attrs - all_user_specified_attrs))
+
+        # add all user-specified attributes -- these must be in order
+        steps += self.user_steps
+
+        rg = RunGroup(None, self.runs)
+        output_groups = [rg]
+
+        for step in steps:
+            step_groups = []
+            for group in output_groups:
+                step_groups.extend(step.use(group))
+            output_groups = step_groups
+
+        return output_groups

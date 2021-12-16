@@ -7,6 +7,7 @@ benchart = BenchArt([
         'machine_id': 223,
         'machine_os': 'Linux',
         'machine_location': 'local',
+        'hp': 'on',
         'application_version': 12,
         'application_config_backend_flush_after': 128,
         'benchmark_name': 'pgbench',
@@ -17,6 +18,7 @@ benchart = BenchArt([
         'machine_id': 223,
         'machine_os': 'Linux',
         'machine_location': 'local',
+        'hp': 'on',
         'application_version': 13,
         'application_config_backend_flush_after': 128,
         'benchmark_name': 'pgbench',
@@ -27,6 +29,7 @@ benchart = BenchArt([
         'machine_id': 223,
         'machine_os': 'Linux',
         'machine_location': 'local',
+        'hp': 'on',
         'application_version': 12,
         'application_config_backend_flush_after': 256,
         'benchmark_name': 'pgbench',
@@ -37,6 +40,7 @@ benchart = BenchArt([
         'machine_id': 223,
         'machine_os': 'Linux',
         'machine_location': 'local',
+        'hp': 'on',
         'application_version': 12,
         'application_config_backend_flush_after': 512,
         'benchmark_name': 'pgbench',
@@ -47,6 +51,7 @@ benchart = BenchArt([
         'machine_id': 222,
         'machine_os': 'Linux',
         'machine_location': 'local',
+        'hp': 'off',
         'application_version': 12,
         'application_config_backend_flush_after': 512,
         'benchmark_name': 'pgbench',
@@ -55,13 +60,9 @@ benchart = BenchArt([
     ),
 ])
 
-benchart.exhibit('application_version')
-benchart.chart('application_config_backend_flush_after')
+benchart.part('application_version')
+benchart.part('application_config_backend_flush_after')
 
 cohort = benchart.run()
 
-for exhibit in cohort:
-    pprint.pprint(exhibit)
-    for chart in exhibit.charts:
-        print(chart.special_run_print())
-
+pprint.pprint(cohort)
