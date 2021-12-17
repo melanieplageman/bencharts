@@ -8,7 +8,6 @@ class Run:
         self.id = id
         self.data = data
         self.metadata = RunMetadata(metadata)
-        self.label = None
 
     def __eq__(self, other):
         return self.metadata == other.metadata
@@ -17,14 +16,7 @@ class Run:
         return hash(str(self.metadata))
 
     def __repr__(self):
-        if self.label:
-            return f'Label: {self.label}: Run {str(self.id)}: {str(self.metadata)}\n'
-        else:
-            return "Run %s: %s\n" % (str(self.id), str(self.metadata))
-
-    def set_label(self, label_step):
-        label_attrs = label_step.attrs
-        self.label = self.metadata.except_metadata(label_attrs)
+        return "Run %s: %s\n" % (str(self.id), str(self.metadata))
 
 class Step:
     def __init__(self, attrs):
