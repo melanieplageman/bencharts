@@ -63,6 +63,6 @@ benchart = BenchArt([
 benchart.part('application_version')
 benchart.part('application_config_backend_flush_after')
 
-cohort = benchart.run()
+root = benchart.run()
 
-pprint.pprint(cohort)
+print(benchart.print_tree(root))

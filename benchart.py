@@ -28,16 +28,21 @@ class Step:
         for run in input_group.runs:
             output_groups.setdefault(run.metadata.subset(self.attrs), []).append(run)
 
-        result_rgs = [RunGroup(sm, runs) for sm, runs in output_groups.items()]
+        result_rgs = [RunGroup(input_group, sm, runs) for sm, runs in output_groups.items()]
+        input_group.children = result_rgs
         return result_rgs
 
     def __repr__(self):
         return f'Step attributes: {self.attrs}'
 
 class RunGroup:
-    def __init__(self, shared_metadata, runs):
+    def __init__(self, parent, shared_metadata, runs):
         self.metadata = shared_metadata
         self.runs = runs
+        self.parent = parent
+        self.children = []
+        self.visited = False
+        self.level = -1
 
     def __repr__(self):
         return f'Metadata: {self.metadata}\nRuns:\n{self.runs}'
@@ -82,13 +87,36 @@ class BenchArt:
         # add all user-specified attributes -- these must be in order
         steps += self.user_steps
 
-        rg = RunGroup(None, self.runs)
-        output_groups = [rg]
+        og = RunGroup(None, None, self.runs)
+        groups = [og]
 
         for step in steps:
-            step_groups = []
-            for group in output_groups:
-                step_groups.extend(step.use(group))
-            output_groups = step_groups
+            current_level = []
+            for group in groups:
+                current_level.extend(step.use(group))
+            groups = current_level
 
-        return output_groups
+        return og
+
+    def print_tree(self, root):
+        s = "Benchart:"
+        current_level = -1
+        root.level = 0
+        queue = [root]
+        while len(queue) > 0:
+            # dequeue a node
+            current = queue[0]
+            if not current.visited:
+                if current.level > current_level:
+                    current_level = current.level
+                    s += '\n----------------\n'
+                    s += f'\nLEVEL {current_level}\n'
+                s += str(current)
+            current.visited = True
+            queue = queue[1:]
+
+            # enqueue its children
+            for child in current.children:
+                child.level = current.level + 1
+                queue.append(child)
+        return s
