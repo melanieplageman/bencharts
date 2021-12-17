@@ -26,7 +26,7 @@ class Step:
     def use(self, input_group):
         output_groups = {}
         for run in input_group.runs:
-            output_groups.setdefault(run.metadata.except_metadata(self.attrs), []).append(run)
+            output_groups.setdefault(run.metadata.subset(self.attrs), []).append(run)
 
         result_rgs = [RunGroup(sm, runs) for sm, runs in output_groups.items()]
         return result_rgs

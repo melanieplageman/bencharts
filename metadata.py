@@ -31,11 +31,8 @@ class RunMetadata(Mapping):
     def values(self):
         return self.metadata.values()
 
-    def shared_metadata(self, except_keys):
-        return RunMetadata({ k: v for k, v in self.metadata.items() if k not in except_keys })
-
-    def except_metadata(self, except_keys):
-        return RunMetadata({ k: v for k, v in self.metadata.items() if k in except_keys})
+    def subset(self, chosen_keys):
+        return RunMetadata({ k: v for k, v in self.metadata.items() if k in chosen_keys})
 
     def pretty_print(self):
         return ''.join([f' {k}: {v}' for k, v in self.metadata.items()]) + '\n'
