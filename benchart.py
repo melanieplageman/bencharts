@@ -55,8 +55,8 @@ class BenchArt:
         self.user_steps = []
 
     # these must be appended in order
-    def part(self, attrs):
-        self.user_steps.append(Step(set([attrs])))
+    def part(self, *attrs):
+        self.user_steps.append(Step(set(attrs)))
 
     # returns a set of string, which are the attributes on which all runs agree
     # e.g. {"ver", "hp"}
