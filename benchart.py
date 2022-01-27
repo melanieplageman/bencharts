@@ -16,7 +16,7 @@ class Run:
         return hash(str(self.metadata))
 
     def __repr__(self):
-        return "Run %s: %s\n" % (str(self.id), str(self.metadata))
+        return "Run %s: %s" % (str(self.id), str(self.metadata))
 
 class Step:
     def __init__(self, attrs):
@@ -25,7 +25,7 @@ class Step:
     # return a list of output groups
     def use(self, input_group):
         output_groups = {}
-        for run in input_group.runs:
+        for run in input_group.children:
             output_groups.setdefault(run.metadata.subset(self.attrs), []).append(run)
 
         result_rgs = [RunGroup(input_group, sm, runs) for sm, runs in output_groups.items()]
@@ -36,16 +36,13 @@ class Step:
         return f'Step attributes: {self.attrs}'
 
 class RunGroup:
-    def __init__(self, parent, shared_metadata, runs):
+    def __init__(self, parent, shared_metadata, children=None):
         self.metadata = shared_metadata
-        self.runs = runs
         self.parent = parent
-        self.children = []
-        self.visited = False
-        self.level = -1
+        self.children = children or []
 
     def __repr__(self):
-        return f'Metadata: {self.metadata}\nRuns:\n{self.runs}'
+        return f'Metadata: {self.metadata}'
 
 class BenchArt:
     def __init__(self, runs):
@@ -96,27 +93,13 @@ class BenchArt:
                 current_level.extend(step.use(group))
             groups = current_level
 
-        return og
+        return og.children[0]
 
-    def print_tree(self, root):
-        s = "Benchart:"
-        current_level = -1
-        root.level = 0
-        queue = [root]
-        while len(queue) > 0:
-            # dequeue a node
-            current = queue[0]
-            if not current.visited:
-                if current.level > current_level:
-                    current_level = current.level
-                    s += '\n----------------\n'
-                    s += f'\nLEVEL {current_level}\n'
-                s += str(current)
-            current.visited = True
-            queue = queue[1:]
+    def print_tree(self, root, indent=0):
+        print(" " * indent + repr(root))
 
-            # enqueue its children
-            for child in current.children:
-                child.level = current.level + 1
-                queue.append(child)
-        return s
+        if isinstance(root, Run):
+            return
+
+        for node in root.children:
+            self.print_tree(node, indent + 2)
