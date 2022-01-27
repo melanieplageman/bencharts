@@ -4,20 +4,8 @@ from loader import flatten
 import pprint
 from metadata import RunMetadata
 
-data = []
-with open('data.csv') as csvfile:
-    reader = csv.DictReader(csvfile)
-    for row in reader:
-        data.append(row)
-
-d1 = data[0:5]
-d2 = data[5:10]
-d3 = data[10:15]
-d4 = data[15:20]
-d5 = data[20:25]
-
 run_list = [
-        Run(1, d1, {
+        Run(1, 'data0.csv', {
             'machine_id': 223,
             'machine_os': 'Linux',
             'machine_location': 'local',
@@ -30,7 +18,7 @@ run_list = [
             'benchmark_workload': 'tpcb'
             }
         ),
-        Run(2, d2, {
+        Run(2, 'data1.csv', {
             'machine_id': 223,
             'machine_os': 'Linux',
             'machine_location': 'local',
@@ -43,7 +31,7 @@ run_list = [
             'benchmark_workload': 'tpcb'
             }
         ),
-        Run(3, d3, {
+        Run(3, 'data2.csv', {
             'machine_id': 223,
             'machine_os': 'Linux',
             'machine_location': 'local',
@@ -56,7 +44,7 @@ run_list = [
             'benchmark_workload': 'tpcb'
             }
         ),
-        Run(4, d4, {
+        Run(4, 'data3.csv', {
             'machine_id': 223,
             'machine_os': 'Linux',
             'machine_location': 'local',
@@ -69,7 +57,7 @@ run_list = [
             'benchmark_workload': 'tpcb'
             }
         ),
-        Run(5, d5, {
+        Run(5, 'data4.csv', {
             'machine_id': 222,
             'machine_os': 'Linux',
             'machine_location': 'local',
