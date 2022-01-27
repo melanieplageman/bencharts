@@ -4,12 +4,16 @@ from benchart import Run, RunGroup
 import matplotlib.gridspec as gridspec
 
 class Result:
-    def __init__(self, run):
+    def __init__(self, run, label_components=[]):
         self.run_id = run.id
         dtypes = {'ts': 'str', 'tps': 'float', 'lat': 'float', 'stddev': 'float'}
         # Assuming run.data is a CSV filename for now
         self.df = pd.read_csv(run.data, dtype=dtypes, parse_dates=['ts'])
         self.metadata = run.metadata
+        self.label = f'Run {str(run.id)}'
+        if label_components:
+            string = ', '.join(str(label_component) for label_component in label_components[1:])
+            self.label += f' {string}'
 
     def plot(self, ax):
         self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['machine_id'])
@@ -22,6 +26,7 @@ class GridSpecRenderer(Renderer):
     def __call__(self, renderers, run_group, indent=0):
         renderer, *renderers = renderers
 
+        self.figure.suptitle(run_group)
         gridspec = self.figure.add_gridspec(nrows=len(run_group.children))
         print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
         for i, child in enumerate(run_group.children):
@@ -32,6 +37,10 @@ class SubGridSpecRenderer(Renderer):
         renderer, *renderers = renderers
 
         subgridspec = cell.subgridspec(nrows=len(run_group.children), ncols=1)
+
+        subfig = self.figure.add_subfigure(cell)
+        subfig.suptitle(run_group, x=0.5, y=0.9)
+
         print(" " * indent, f"{cell}.subgridspec(nrows={len(run_group.children)})")
         for i, child in enumerate(run_group.children):
             renderer(renderers, child, subgridspec[i], indent + 2)
@@ -42,34 +51,37 @@ class AxesRenderer(Renderer):
 
         print(" " * indent, f"figure.add_subplot({cell})")
         ax = self.figure.add_subplot(cell)
+        ax.set_title(run_group)
         renderer(renderers, run_group, ax, indent + 2)
 
 class PlotRenderer(Renderer):
     def __call__(self, renderers, run_group, ax, indent=0):
-        runs = []
+        label_components = []
+        results = []
         if isinstance(run_group.children[0], Run):
-            runs = run_group.children
+            results = [Result(run) for run in run_group.children]
         else:
-            self.flatten(run_group, runs)
+            results = self.flatten(run_group, label_components)
 
-        for run in runs:
-            result = Result(run)
-            result.df.plot(x='ts', y='tps', ax=ax, label=f'Run {str(run.id)}')
+        for result in results:
+            result.df.plot(x='ts', y='tps', ax=ax, label=result.label)
 
-    def flatten(self, node, answers):
+    def flatten(self, node, label_components):
         if isinstance(node, Run):
-            return node
+            return [Result(node, label_components)]
+
+        output = []
         for child in node.children:
-            t = self.flatten(child, answers)
-            if t:
-                answers.append(t)
+            t = self.flatten(child, label_components + [node])
+            output.extend(t)
+        return output
 
 def do_render(root):
-    figure = plt.figure(figsize=(10,30))
+    figure = plt.figure(figsize=(10,15))
     size = figure.get_size_inches()
     renderers = [
             GridSpecRenderer(figure),
-            SubGridSpecRenderer(figure),
+            # SubGridSpecRenderer(figure),
             SubGridSpecRenderer(figure),
             AxesRenderer(figure),
             PlotRenderer(figure)
