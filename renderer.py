@@ -14,58 +14,65 @@ class Result:
     def plot(self, ax):
         self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['machine_id'])
 
+class Renderer:
+    def __init__(self, figure):
+        self.figure = figure
+
+class GridSpecRenderer(Renderer):
+    def __call__(self, renderers, run_group, indent=0):
+        renderer, *renderers = renderers
+
+        gridspec = self.figure.add_gridspec(nrows=len(run_group.children))
+        print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
+        for i, child in enumerate(run_group.children):
+            renderer(renderers, child, gridspec[i], indent + 2)
+
+class SubGridSpecRenderer(Renderer):
+    def __call__(self, renderers, run_group, cell, indent=0):
+        renderer, *renderers = renderers
+
+        subgridspec = cell.subgridspec(nrows=len(run_group.children), ncols=1)
+        print(" " * indent, f"{cell}.subgridspec(nrows={len(run_group.children)})")
+        for i, child in enumerate(run_group.children):
+            renderer(renderers, child, subgridspec[i], indent + 2)
+
+class AxesRenderer(Renderer):
+    def __call__(self, renderers, run_group, cell, indent=0):
+        renderer, *renderers = renderers
+
+        print(" " * indent, f"figure.add_subplot({cell})")
+        ax = self.figure.add_subplot(cell)
+        renderer(renderers, run_group, ax, indent + 2)
+
+class PlotRenderer(Renderer):
+    def __call__(self, renderers, run_group, ax, indent=0):
+        runs = []
+        if isinstance(run_group.children[0], Run):
+            runs = run_group.children
+        else:
+            self.flatten(run_group, runs)
+
+        for run in runs:
+            result = Result(run)
+            result.df.plot(x='ts', y='tps', ax=ax, label=f'Run {str(run.id)}')
+
+    def flatten(self, node, answers):
+        if isinstance(node, Run):
+            return node
+        for child in node.children:
+            t = self.flatten(child, answers)
+            if t:
+                answers.append(t)
+
 def do_render(root):
-    if isinstance(root, Run):
-        print("can't plot single Run with no other information")
-        return
-    if not root.children:
-        print("Can't plot node with no runs")
-        return
     figure = plt.figure(figsize=(10,30))
     size = figure.get_size_inches()
-    #renderers = [render_gridspec, render_subgridspec, render_axes, plot]
-    #renderers = [render_gridspec, render_subgridspec, render_subgridspec, render_axes, plot]
-    renderers = [render_gridspec, render_axes, plot]
-    render_gridspec(renderers[1:], root, figure)
+    renderers = [
+            GridSpecRenderer(figure),
+            SubGridSpecRenderer(figure),
+            SubGridSpecRenderer(figure),
+            AxesRenderer(figure),
+            PlotRenderer(figure)
+            ]
 
-def flatten(node, result):
-    if isinstance(node, Run):
-        return node
-    for child in node.children:
-        t = flatten(child, result)
-        if t:
-            result.append(t)
-
-def render_gridspec(renderers, run_group, figure, indent=0):
-    renderer, *renderers = renderers
-
-    gridspec = figure.add_gridspec(nrows=len(run_group.children))
-    print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
-    for i, child in enumerate(run_group.children):
-        renderer(renderers, child, figure, gridspec[i], indent + 2)
-
-def render_subgridspec(renderers, run_group, figure, cell, indent=0):
-    renderer, *renderers = renderers
-
-    subgridspec = cell.subgridspec(nrows=len(run_group.children), ncols=1)
-    print(" " * indent, f"{cell}.subgridspec(nrows={len(run_group.children)})")
-    for i, child in enumerate(run_group.children):
-        renderer(renderers, child, figure, subgridspec[i], indent + 2)
-
-def render_axes(renderers, run_group, figure, cell, indent=0):
-    renderer, *renderers = renderers
-
-    print(" " * indent, f"figure.add_subplot({cell})")
-    ax = figure.add_subplot(cell)
-    renderer(renderers, run_group, ax, indent + 2)
-
-def plot(renderers, run_group, ax, indent=0):
-    runs = []
-    if isinstance(run_group.children[0], Run):
-        runs = run_group.children
-    else:
-        flatten(run_group, runs)
-
-    for run in runs:
-        result = Result(run)
-        result.df.plot(x='ts', y='tps', ax=ax, label=f'Run {str(run.id)}')
+    renderers[0](renderers[1:], root)
