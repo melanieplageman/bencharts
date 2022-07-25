@@ -6,9 +6,7 @@ import matplotlib.gridspec as gridspec
 class Result:
     def __init__(self, run, label_components=[]):
         self.run_id = run.id
-        dtypes = {'ts': 'str', 'tps': 'float', 'lat': 'float', 'stddev': 'float'}
-        # Assuming run.data is a CSV filename for now
-        self.df = pd.read_csv(run.data, dtype=dtypes, parse_dates=['ts'])
+        self.df = pd.DataFrame(run.data)
         self.metadata = run.metadata
         self.label = f'Run {str(run.id)}'
         if label_components:
@@ -49,16 +47,20 @@ class AxesRenderer(Renderer):
     def __call__(self, renderers, run_group, cell, indent=0):
         renderer, *renderers = renderers
 
-        print(" " * indent, f"figure.add_subplot({cell})")
+        # print(" " * indent, f"figure.add_subplot({cell})")
         ax = self.figure.add_subplot(cell)
-        ax.set_title(run_group)
+        # ax.set_title(str(run_group))
         renderer(renderers, run_group, ax, indent + 2)
 
 class PlotRenderer(Renderer):
     def __call__(self, renderers, run_group, ax, indent=0):
         label_components = []
         results = []
-        if isinstance(run_group.children[0], Run):
+        # TODO: this shouldn't be happening, I think
+        if isinstance(run_group, Run):
+            results = [Result(run_group)]
+
+        elif isinstance(run_group.children[0], Run):
             results = [Result(run) for run in run_group.children]
         else:
             results = self.flatten(run_group, label_components)
@@ -75,16 +77,3 @@ class PlotRenderer(Renderer):
             t = self.flatten(child, label_components + [node])
             output.extend(t)
         return output
-
-def do_render(root):
-    figure = plt.figure(figsize=(10,15))
-    size = figure.get_size_inches()
-    renderers = [
-            GridSpecRenderer(figure),
-            # SubGridSpecRenderer(figure),
-            SubGridSpecRenderer(figure),
-            AxesRenderer(figure),
-            PlotRenderer(figure)
-            ]
-
-    renderers[0](renderers[1:], root)
