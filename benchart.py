@@ -10,6 +10,8 @@ class Run:
         self.metadata = RunMetadata(metadata)
 
     def __eq__(self, other):
+        if not isinstance(other, Run):
+            return NotImplemented
         return self.metadata == other.metadata
 
     def __hash__(self):
@@ -23,13 +25,13 @@ class Step:
         self.attrs = attrs
 
     # return a list of output groups
-    def use(self, input_group):
+    def use(self, parent):
         output_groups = {}
-        for run in input_group.children:
+        for run in parent.children:
             output_groups.setdefault(run.metadata.subset(self.attrs), []).append(run)
 
-        result_rgs = [RunGroup(input_group, sm, runs) for sm, runs in output_groups.items()]
-        input_group.children = result_rgs
+        result_rgs = [RunGroup(parent, sm, runs) for sm, runs in output_groups.items()]
+        parent.children = result_rgs
         return result_rgs
 
     def __repr__(self):
