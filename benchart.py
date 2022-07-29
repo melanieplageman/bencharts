@@ -37,6 +37,10 @@ class Step:
     def __repr__(self):
         return f'Step attributes: {self.attrs}'
 
+class IgnoreStep(Step):
+    def use(self, parent):
+        return []
+
 class RunGroup:
     def __init__(self, parent, shared_metadata, children=None):
         self.metadata = shared_metadata
@@ -56,6 +60,9 @@ class BenchArt:
     # these must be appended in order
     def part(self, *attrs):
         self.user_steps.append(Step(set(attrs)))
+
+    def ignore(self, *attrs):
+        return self.user_steps.append(IgnoreStep(set(attrs)))
 
     # returns a set of string, which are the attributes on which all runs agree
     # e.g. {"ver", "hp"}
