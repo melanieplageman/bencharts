@@ -32,7 +32,7 @@ class GridSpecRenderer(Renderer):
     def __call__(self, renderers, run_group, indent=0):
         renderer, *renderers = renderers
 
-        self.figure.suptitle(run_group)
+        # self.figure.suptitle(run_group)
         gridspec = self.figure.add_gridspec(nrows=len(run_group.children))
         print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
         for i, child in enumerate(run_group.children):
