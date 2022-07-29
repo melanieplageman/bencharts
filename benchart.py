@@ -18,7 +18,7 @@ class Run:
         return hash(str(self.metadata))
 
     def __repr__(self):
-        return "Run %s: %s" % (str(self.id), str(self.metadata))
+        return "Run %s" % (str(self.id))
 
 class Step:
     def __init__(self, attrs):
