@@ -8,37 +8,21 @@ from metadata import RunMetadata
 from loader import flatten, extract, normalize
 import json
 
-
-
-
-run_data=sys.argv[1]
-
+results_dir='run_data2'
 runs = []
-for i, datafile in enumerate(os.listdir(run_data)):
-    all_data = extract(os.path.join(run_data, datafile))
+for i, datafile in enumerate(os.listdir(results_dir)):
+    all_data = extract(os.path.join(results_dir, datafile))
     data = all_data['data']['pgbench']['progress']
     metadata = all_data['metadata']
-    del metadata['postgres']['gucs']['all_gucs']
-    del metadata['stats']
-    runs.append(Run(i, data, RunMetadata(flatten(metadata))))
+    runs.append(Run(i + 1, data, RunMetadata(flatten(metadata))))
 
 normalize(runs)
 
-# print(json.dumps(runs[0].metadata.metadata))
-
 benchart = BenchArt(runs)
+benchart.part('benchmark_config_scale')
+benchart.ignore('machine_instance_hostinfo_KernelRelease',
+                'machine_disk_block_device_settings_nr_hw_queues',
+                'machine_disk_block_device_settings_nr_requests',
+                'machine_disk_block_device_settings_queue_depth')
 root = benchart.run()
-benchart.part('benchmark_config_num_clients')
 benchart.print_tree(root)
-
-figure = plt.figure(figsize=(5,10))
-size = figure.get_size_inches()
-renderers = [
-        GridSpecRenderer(figure),
-        SubGridSpecRenderer(figure),
-        # SubGridSpecRenderer(figure),
-        AxesRenderer(figure),
-        PlotRenderer(figure)
-        ]
-
-renderers[0](renderers[1:], root)
