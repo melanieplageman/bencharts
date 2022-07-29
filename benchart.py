@@ -8,6 +8,7 @@ class Run:
         self.id = id
         self.data = data
         self.metadata = RunMetadata(metadata)
+        self.rungroup = None
 
     def __eq__(self, other):
         if not isinstance(other, Run):
@@ -47,8 +48,29 @@ class RunGroup:
         self.parent = parent
         self.children = children or []
 
+        # Hack so that the accumulated_attrs property works to make a label for
+        # Runs. A Run sets itself as its RunGroup. Then when making its label,
+        # it calculates the accumulated_attrs -- which are all of the
+        # attributes of all of its parent tree RunGroups, including the root
+        # which has all of the shared attributes for all Runs.
+        # The difference between the accumulated_attrs and the Run metadata are
+        # all the attributes which differ amongst runs but have not been use to
+        # group RunGroups. These will be the Run ID itself and any attributes
+        # added to the list of attributes to ignore while partitoning.
+        # Going forward, there may be a better way to do this.
+        for rungroup_or_run in self.children:
+            if isinstance(rungroup_or_run, Run):
+                rungroup_or_run.rungroup = self
+
     def __repr__(self):
         return f'Metadata: {self.metadata}'
+
+    @property
+    def accumulated_attrs(self):
+        result = set(self.metadata.keys())
+        if self.parent is not None and self.parent.metadata is not None:
+            result |= self.parent.accumulated_attrs
+        return result
 
 class BenchArt:
     def __init__(self, runs):

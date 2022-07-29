@@ -5,16 +5,24 @@ import matplotlib.gridspec as gridspec
 
 class Result:
     def __init__(self, run, label_components=[]):
+        self.run = run
         self.run_id = run.id
         self.df = pd.DataFrame(run.data)
         self.metadata = run.metadata
-        self.label = f'Run {str(run.id)}'
         if label_components:
             string = ', '.join(str(label_component) for label_component in label_components[1:])
             self.label += f' {string}'
 
     def plot(self, ax):
         self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['machine_id'])
+
+    @property
+    def label(self):
+        prefix = f'Run {str(self.run_id)}'
+        show_attrs = self.metadata.keys() - self.run.rungroup.accumulated_attrs
+        if not show_attrs:
+            return prefix
+        return prefix + ' ' + str(self.metadata.subset(show_attrs))
 
 class Renderer:
     def __init__(self, figure):
@@ -43,13 +51,14 @@ class SubGridSpecRenderer(Renderer):
         for i, child in enumerate(run_group.children):
             renderer(renderers, child, subgridspec[i], indent + 2)
 
+
 class AxesRenderer(Renderer):
     def __call__(self, renderers, run_group, cell, indent=0):
         renderer, *renderers = renderers
 
-        # print(" " * indent, f"figure.add_subplot({cell})")
+        print(" " * indent, f"figure.add_subplot({cell})")
         ax = self.figure.add_subplot(cell)
-        # ax.set_title(str(run_group))
+        ax.set_title(str(run_group))
         renderer(renderers, run_group, ax, indent + 2)
 
 class PlotRenderer(Renderer):
