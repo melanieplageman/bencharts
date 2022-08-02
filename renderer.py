@@ -84,8 +84,11 @@ class PlotRenderer(Renderer):
         else:
             results = self.flatten(run_group)
 
+        filenames = {}
         for result in results:
-            result.df.plot(x='ts', y='tps', ax=ax, label=result.label)
+            filenames[result.run_id] = result.run.filename
+            result.df.plot(x='ts', y='tps', ax=ax, label=result.label, rot=0)
+        pdf = pd.Series(filenames)
 
     def flatten(self, node):
         if isinstance(node, Run):
@@ -96,3 +99,16 @@ class PlotRenderer(Renderer):
             t = self.flatten(child)
             output.extend(t)
         return output
+
+
+def render(benchart, figure, relabels):
+    root = benchart.run()
+
+    renderers = [
+            GridSpecRenderer(figure, relabels),
+            *benchart.renderers,
+            AxesRenderer(figure, relabels),
+            PlotRenderer(figure, relabels),
+            ]
+
+    renderers[0](renderers[1:], root)

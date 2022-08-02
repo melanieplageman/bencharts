@@ -4,11 +4,12 @@ from metadata import RunMetadata
 import pprint
 
 class Run:
-    def __init__(self, id, data, metadata):
+    def __init__(self, id, data, metadata, filename):
         self.id = id
         self.data = data
         self.metadata = RunMetadata(metadata)
         self.rungroup = None
+        self.filename = filename
 
     def __eq__(self, other):
         if not isinstance(other, Run):
@@ -78,9 +79,11 @@ class BenchArt:
         # We assume loader has standardized all runs to have the same keys
         self.all_attrs = runs[0].metadata.keys()
         self.user_steps = []
+        self.renderers = []
 
     # these must be appended in order
-    def part(self, *attrs):
+    def part(self, renderer, *attrs):
+        self.renderers.append(renderer)
         self.user_steps.append(Step(set(attrs)))
 
     def ignore(self, *attrs):
