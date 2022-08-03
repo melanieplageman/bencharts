@@ -2,14 +2,29 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from benchart import Run, RunGroup
 import matplotlib.gridspec as gridspec
+import uuid
+from IPython.core.display import display, HTML
+import json
+import collections
+import datetime
+import matplotlib.dates as mdates
+import pprint
+
+DEBUG = False
 
 class Result:
     def __init__(self, run, relabels={}):
         self.run = run
         self.run_id = run.id
         self.df = pd.DataFrame(run.data)
+
         self.metadata = run.metadata
         self.relabels = relabels
+
+        self.df['ts'] = pd.to_datetime(self.df['ts'])
+        zero = self.df['ts'].min()
+        self.df['relative_time'] = (self.df['ts'] - zero).apply(
+            lambda t: t.total_seconds())
 
     def plot(self, ax):
         self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['machine_id'])
@@ -105,11 +120,16 @@ class PlotRenderer(Renderer):
         else:
             results = self.flatten(run_group)
 
-        filenames = {}
         for result in results:
-            filenames[result.run_id] = result.run.filename
-            result.df.plot(x='ts', y='tps', ax=ax, label=result.label, rot=0)
+            result.df.plot(x='relative_time', y='tps', ax=ax, label=result.label)
+
+        # Display each tick on the X axis as MM:SS
+        ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
+        ax.spines["bottom"].set_linewidth(6)
+
+        filenames = {result.run_id: result.run.filename for result in results}
         pdf = pd.Series(filenames)
+        # print(pdf)
 
     def flatten(self, node):
         if isinstance(node, Run):
