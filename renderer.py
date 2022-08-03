@@ -37,14 +37,24 @@ class Renderer:
         self.figure = figure
         self.relabels = relabels
 
+
 class GridSpecRenderer(Renderer):
+    def __init__(self, figure, relabels={}):
+        super().__init__(figure, relabels)
+        self.title = None
+
     def __call__(self, renderers, run_group, indent=0):
         renderer, *renderers = renderers
 
-        # TODO: use a javascript library to make this collapsible JSON
-        # self.figure.suptitle(run_group)
+        # The title often includes many shared attributes. This will be
+        # displayed as collapsible JSON instead of using it as a title
+        # It can be accessed from the GridSpecRenderer
+        self.title = collections.OrderedDict(sorted(run_group.metadata.metadata.items()))
+        self.title = pprint.pformat(self.title)
+        # self.figure.suptitle(self.title, wrap=True)
         gridspec = self.figure.add_gridspec(nrows=len(run_group.children))
-        print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
+        if DEBUG:
+            print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
         for i, child in enumerate(run_group.children):
             renderer(renderers, child, gridspec[i], indent + 2)
 
@@ -52,12 +62,22 @@ class SubGridSpecRenderer(Renderer):
     def __call__(self, renderers, run_group, cell, indent=0):
         renderer, *renderers = renderers
 
-        subgridspec = cell.subgridspec(nrows=len(run_group.children), ncols=1)
+        subgridspec = cell.subgridspec(nrows=len(run_group.children), ncols=1,
+                                       hspace=0.08)
 
         subfig = self.figure.add_subfigure(cell)
-        subfig.suptitle(run_group, x=0.5, y=0.9)
+        # subfig.set_facecolor(str(indent * 0.09))
+        subfig.suptitle(pprint.pformat(run_group.metadata.metadata),
+                        ha="right", va="bottom")
+        rect = plt.Rectangle(
+            # (lower-left corner), width, height
+            (0.02, 0.5), 0.97, 0.5, fill=False, color="k", lw=2,
+            zorder=1000, transform=subfig.transFigure, figure=subfig
+        )
+        subfig.patches.extend([rect])
 
-        print(" " * indent, f"{cell}.subgridspec(nrows={len(run_group.children)})")
+        if DEBUG:
+            print(" " * indent, f"{cell}.subgridspec(nrows={len(run_group.children)})")
         for i, child in enumerate(run_group.children):
             renderer(renderers, child, subgridspec[i], indent + 2)
 
@@ -66,7 +86,8 @@ class AxesRenderer(Renderer):
     def __call__(self, renderers, run_group, cell, indent=0):
         renderer, *renderers = renderers
 
-        print(" " * indent, f"figure.add_subplot({cell})")
+        if DEBUG:
+            print(" " * indent, f"figure.add_subplot({cell})")
         ax = self.figure.add_subplot(cell)
         ax.set_title(str(run_group))
         renderer(renderers, run_group, ax, indent + 2)
@@ -96,19 +117,19 @@ class PlotRenderer(Renderer):
 
         output = []
         for child in node.children:
-            t = self.flatten(child)
-            output.extend(t)
+            output.extend(self.flatten(child))
         return output
-
 
 def render(benchart, figure, relabels):
     root = benchart.run()
+    gs = GridSpecRenderer(figure, relabels)
 
     renderers = [
-            GridSpecRenderer(figure, relabels),
-            *benchart.renderers,
-            AxesRenderer(figure, relabels),
-            PlotRenderer(figure, relabels),
-            ]
+        gs,
+        *benchart.renderers,
+        AxesRenderer(figure, relabels),
+        PlotRenderer(figure, relabels),
+    ]
 
     renderers[0](renderers[1:], root)
+    return gs
