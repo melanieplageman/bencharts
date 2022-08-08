@@ -49,6 +49,11 @@ class Renderer:
 
 
 class SubfigureRenderer(Renderer):
+    """
+    Renders RunGroups as nested subfigures in Matplotlib. Creates a subfigure
+    for every RunGroup child of the passed-in run_group within the passed-in
+    parent figure or subfigure.
+    """
     def __call__(self, renderers, run_group, subfig, set_title=True, indent=0):
         renderer, *renderers = renderers
 
@@ -66,6 +71,11 @@ class SubfigureRenderer(Renderer):
 
 
 class AxesRenderer(Renderer):
+    """
+    Renders RunGroups as axes in Matplotlib. Creates an axes (via adding a
+    subplot) for every child of the passed-in RunGroup within the passed-in
+    subfigure.
+    """
     def __call__(self, renderers, run_group, subfig, set_title=True, indent=0):
         renderer, *renderers = renderers
 
@@ -77,6 +87,11 @@ class AxesRenderer(Renderer):
 
 
 class PlotRenderer(Renderer):
+    """
+    Renders Runs as plots in Matplotlib. A Pandas DataFrame is created for
+    every Run's data of the passed in Run or Run children of the passed-in
+    RunGroup on the passed-in axis.
+    """
     def __call__(self, renderers, run_group, ax, set_title=False, indent=0):
         results = []
         if isinstance(run_group, Run):
