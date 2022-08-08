@@ -1,16 +1,19 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from benchart import Run, RunGroup
-import matplotlib.gridspec as gridspec
-import uuid
-from IPython.core.display import display, HTML
-import json
+from benchart import Run
 import collections
-import datetime
-import matplotlib.dates as mdates
-import pprint
 
 DEBUG = False
+
+def do_relabel(metadata, relabels):
+    result = ''
+    for k, v in metadata.items():
+        key = k
+        if k in relabels.keys():
+            key = relabels[k]
+        result += f'{key}: {v}, '
+    return result
+
 
 class Result:
     def __init__(self, run, relabels={}):
@@ -37,81 +40,45 @@ class Result:
             return prefix
         subset = self.metadata.subset(show_attrs)
 
-        result = ''
-        for k, v in subset.items():
-            key = k
-            if k in self.relabels.keys():
-                key = self.relabels[k]
-            result += f'{key}: {v}, '
-
-        return prefix + ': ' + result
+        return prefix + ': ' + do_relabel(subset, self.relabels)
 
 
 class Renderer:
-    def __init__(self, figure, relabels={}):
-        self.figure = figure
+    def __init__(self, relabels={}):
         self.relabels = relabels
 
 
-class GridSpecRenderer(Renderer):
-    def __init__(self, figure, relabels={}):
-        super().__init__(figure, relabels)
-        self.title = None
-
-    def __call__(self, renderers, run_group, indent=0):
+class SubfigureRenderer(Renderer):
+    def __call__(self, renderers, run_group, subfig, set_title=True, indent=0):
         renderer, *renderers = renderers
 
-        # The title often includes many shared attributes. This will be
-        # displayed as collapsible JSON instead of using it as a title
-        # It can be accessed from the GridSpecRenderer
-        self.title = collections.OrderedDict(sorted(run_group.metadata.metadata.items()))
-        self.title = pprint.pformat(self.title)
-        # self.figure.suptitle(self.title, wrap=True)
-        gridspec = self.figure.add_gridspec(nrows=len(run_group.children))
-        if DEBUG:
-            print(" " * indent, f"add_gridspec(nrows={len(run_group.children)})")
+        if set_title:
+            subfig.suptitle(do_relabel(run_group.metadata, self.relabels),
+                            wrap=True)
+
+        subfigs = subfig.subfigures(len(run_group.children), 1, wspace=0.07,
+                                    hspace=0.05, frameon=True,
+                                    edgecolor='black', linewidth=2,
+                                    squeeze=False)
+
         for i, child in enumerate(run_group.children):
-            renderer(renderers, child, gridspec[i], indent + 2)
-
-class SubGridSpecRenderer(Renderer):
-    def __call__(self, renderers, run_group, cell, indent=0):
-        renderer, *renderers = renderers
-
-        subgridspec = cell.subgridspec(nrows=len(run_group.children), ncols=1,
-                                       hspace=0.08)
-
-        subfig = self.figure.add_subfigure(cell)
-        # subfig.set_facecolor(str(indent * 0.09))
-        subfig.suptitle(pprint.pformat(run_group.metadata.metadata),
-                        ha="right", va="bottom")
-        rect = plt.Rectangle(
-            # (lower-left corner), width, height
-            (0.02, 0.5), 0.97, 0.5, fill=False, color="k", lw=2,
-            zorder=1000, transform=subfig.transFigure, figure=subfig
-        )
-        subfig.patches.extend([rect])
-
-        if DEBUG:
-            print(" " * indent, f"{cell}.subgridspec(nrows={len(run_group.children)})")
-        for i, child in enumerate(run_group.children):
-            renderer(renderers, child, subgridspec[i], indent + 2)
+            renderer(renderers, child, subfigs[i][0], indent + 2)
 
 
 class AxesRenderer(Renderer):
-    def __call__(self, renderers, run_group, cell, indent=0):
+    def __call__(self, renderers, run_group, subfig, set_title=True, indent=0):
         renderer, *renderers = renderers
 
-        if DEBUG:
-            print(" " * indent, f"figure.add_subplot({cell})")
-        ax = self.figure.add_subplot(cell)
-        ax.set_title(str(run_group))
+        ax = subfig.add_subplot()
+        if set_title:
+            ax.set_title(do_relabel(run_group.metadata, self.relabels))
+
         renderer(renderers, run_group, ax, indent + 2)
 
 
 class PlotRenderer(Renderer):
-    def __call__(self, renderers, run_group, ax, indent=0):
+    def __call__(self, renderers, run_group, ax, set_title=False, indent=0):
         results = []
-        # TODO: this shouldn't be happening, I think
         if isinstance(run_group, Run):
             results = [Result(run_group, self.relabels)]
 
@@ -125,11 +92,10 @@ class PlotRenderer(Renderer):
 
         # Display each tick on the X axis as MM:SS
         ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
-        ax.spines["bottom"].set_linewidth(6)
-
         filenames = {result.run_id: result.run.filename for result in results}
         pdf = pd.Series(filenames)
-        # print(pdf)
+        print(pdf)
+
 
     def flatten(self, node):
         if isinstance(node, Run):
@@ -142,14 +108,19 @@ class PlotRenderer(Renderer):
 
 def render(benchart, figure, relabels):
     root = benchart.run()
-    gs = GridSpecRenderer(figure, relabels)
+
+    # The title often includes many shared attributes. This will be
+    # displayed as collapsible JSON instead of using it as a title
+    title = collections.OrderedDict(sorted(root.metadata.metadata.items()))
 
     renderers = [
-        gs,
+        SubfigureRenderer(relabels),
         *benchart.renderers,
-        AxesRenderer(figure, relabels),
-        PlotRenderer(figure, relabels),
+        AxesRenderer(relabels),
+        PlotRenderer(relabels),
     ]
 
-    renderers[0](renderers[1:], root)
-    return gs
+    renderers[0](renderers[1:], root, figure, set_title=False)
+    benchart.print_tree(root)
+    plt.savefig('all.png', facecolor='white', transparent=False)
+    return title
