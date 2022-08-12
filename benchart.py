@@ -73,6 +73,13 @@ class RunGroup:
             result |= self.parent.accumulated_attrs
         return result
 
+    def iterruns(self):
+        for child in self.children:
+            if isinstance(child, Run):
+                yield child
+            else:
+                yield from child.iterruns()
+
 class BenchArt:
     def __init__(self, runs):
         self.runs = runs
