@@ -137,5 +137,4 @@ def render(benchart, figure, relabels):
 
     renderers[0](renderers[1:], root, figure, set_title=False)
     benchart.print_tree(root)
-    plt.savefig('all.png', facecolor='white', transparent=False)
     return title
