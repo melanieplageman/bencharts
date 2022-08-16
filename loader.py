@@ -17,11 +17,11 @@ class Loader:
         self.root = root
         self.discards = []
 
-    def discard(self, discard_expr):
-        self.discards.append(discard_expr)
+    def discard(self, discard_expr, *args, **kwargs):
+        self.discards.append((discard_expr, args, kwargs))
 
     def do_discard(self, all_data):
-        return any(discard(all_data) for discard in self.discards)
+        return any(discard(all_data, *args, **kwargs) for discard, args, kwargs in self.discards)
 
     def run(self, data_expr, metadata_expr):
         runs = []
