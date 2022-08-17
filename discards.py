@@ -1,5 +1,7 @@
 import re
 
+# These discard expressions are to be used by the Loader class
+
 def discard_large_read(all_data, invert=False):
     large_read = all_data['metadata']['benchmark'].get('large_read', None)
     not_large_read = large_read is None or large_read == '' or large_read == 'none'
