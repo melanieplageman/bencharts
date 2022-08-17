@@ -37,16 +37,6 @@ class Result:
     def plot(self, ax):
         self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['machine_id'])
 
-    @property
-    def label(self):
-        prefix = f'Run {str(self.run_id)}'
-        show_attrs = self.metadata.keys() - self.run.rungroup.accumulated_attrs
-        if not show_attrs:
-            return prefix
-        subset = self.metadata.subset(show_attrs)
-
-        return prefix + ': ' + do_relabel(subset, self.relabels)
-
 
 class Renderer:
     def __init__(self, relabels={}):
@@ -97,6 +87,10 @@ class PlotRenderer(Renderer):
     every Run's data of the passed in Run or Run children of the passed-in
     RunGroup on the passed-in axis.
     """
+    def __init__(self, *args, occludes=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.occludes = occludes
+
     def __call__(self, renderers, run_group, ax, timebound=0, set_title=False, indent=0):
         results = []
         if isinstance(run_group, Run):
@@ -108,7 +102,8 @@ class PlotRenderer(Renderer):
             results = self.flatten(run_group, timebound)
 
         for result in results:
-            result.df.plot(x='relative_time', y='tps', ax=ax, label=result.label)
+            result.df.plot(x='relative_time', y='tps', ax=ax,
+                           label=self.label(result))
 
         # Display each tick on the X axis as MM:SS
         ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
@@ -116,6 +111,18 @@ class PlotRenderer(Renderer):
         pdf = pd.Series(filenames)
         pd.set_option('display.max_colwidth', None)
         # print(pdf)
+
+    def label(self, result):
+        prefix = f'Run {str(result.run_id)}'
+        show_attrs = result.metadata.keys() - result.run.rungroup.accumulated_attrs
+        if self.occludes:
+            show_attrs -= self.occludes
+        if not show_attrs:
+            return prefix
+        subset = result.metadata.subset(show_attrs)
+
+        return prefix + ': ' + do_relabel(subset, result.relabels)
+
 
     def flatten(self, node, timebound):
         if isinstance(node, Run):
@@ -126,7 +133,7 @@ class PlotRenderer(Renderer):
             output.extend(self.flatten(child, timebound))
         return output
 
-def render(benchart, figure, timebound, relabels):
+def render(benchart, figure, timebound, relabels, occludes=None):
     root = benchart.run()
 
     # The title often includes many shared attributes. This will be
@@ -137,7 +144,7 @@ def render(benchart, figure, timebound, relabels):
         SubfigureRenderer(relabels),
         *benchart.renderers,
         AxesRenderer(relabels),
-        PlotRenderer(relabels),
+        PlotRenderer(relabels, occludes=occludes),
     ]
 
     renderers[0](renderers[1:], root, figure, timebound, set_title=False)
