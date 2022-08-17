@@ -62,10 +62,10 @@ def discard_kernel_queue_depth(all_data, target_queue_depth,
     return result if not invert else not result
 
 def discard_scheduler(all_data, target_scheduler='mq-deadline', invert=False):
+    # This must have been transformed from the format "[mq-deadline] none"
+    # during jq parsing
     scheduler = all_data['metadata']['machine']['disk']['block_device_settings']['scheduler']
-    re_sched = re.compile(r"\[([a-zA-Z|-]*)\]")
-    sched_match = re_sched.match(scheduler)
-    result = sched_match is not None and sched_match.group(1) == target_scheduler
+    result = scheduler == target_scheduler
     return result if not invert else not result
 
 def discard_hwq(all_data, target_hwq=1, invert=False):
@@ -91,9 +91,7 @@ def discard_non_default_old_kernel_d2(all_data, invert=False):
     nr_requests = all_data['metadata']['machine']['disk']['block_device_settings']['nr_requests']
     queue_depth = all_data['metadata']['machine']['disk']['block_device_settings']['queue_depth']
     scheduler = all_data['metadata']['machine']['disk']['block_device_settings']['scheduler']
-    re_sched = re.compile(r"\[([a-zA-Z|-]*)\]")
-    sched_match = re_sched.match(scheduler)
     if kernel_version == '5.18.5+':
         return False
-    result = kernel_version != '5.18.5' or hwq != 2 or nr_requests != 316 or queue_depth != 316 or sched_match.group(1) != 'none'
+    result = hwq != 2 or nr_requests != 316 or queue_depth != 316 or scheduler != 'none'
     return result if not invert else not result
