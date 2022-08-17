@@ -5,16 +5,6 @@ import collections
 
 DEBUG = False
 
-def do_relabel(metadata, relabels):
-    result = ''
-    for k, v in metadata.items():
-        key = k
-        if k in relabels.keys():
-            key = relabels[k]
-        result += f'{key}: {v}, '
-    return result
-
-
 class Result:
     """
     Optional timebound determines start time.
@@ -53,7 +43,7 @@ class SubfigureRenderer(Renderer):
         renderer, *renderers = renderers
 
         if set_title:
-            subfig.suptitle(do_relabel(run_group.metadata, self.relabels),
+            subfig.suptitle(do_relabel_str(run_group.metadata, self.relabels),
                             wrap=True)
 
         subfigs = subfig.subfigures(len(run_group.children), 1, wspace=0.07,
@@ -76,7 +66,7 @@ class AxesRenderer(Renderer):
 
         ax = subfig.add_subplot()
         if set_title:
-            ax.set_title(do_relabel(run_group.metadata, self.relabels))
+            ax.set_title(do_relabel_str(run_group.metadata, self.relabels))
 
         renderer(renderers, run_group, ax, indent + 2)
 
@@ -121,8 +111,7 @@ class PlotRenderer(Renderer):
             return prefix
         subset = result.metadata.subset(show_attrs)
 
-        return prefix + ': ' + do_relabel(subset, result.relabels)
-
+        return prefix + ': ' + do_relabel_str(subset, result.relabels)
 
     def flatten(self, node, timebound):
         if isinstance(node, Run):
@@ -132,6 +121,7 @@ class PlotRenderer(Renderer):
         for child in node.children:
             output.extend(self.flatten(child, timebound))
         return output
+
 
 def render(benchart, figure, timebound, relabels, occludes=None):
     root = benchart.run()
@@ -148,5 +138,45 @@ def render(benchart, figure, timebound, relabels, occludes=None):
     ]
 
     renderers[0](renderers[1:], root, figure, timebound, set_title=False)
-    # benchart.print_tree(root)
     return root, title
+
+def do_relabel_str(metadata, relabels):
+    result = ''
+    for k, v in metadata.items():
+        key = k
+        if k in relabels.keys():
+            key = relabels[k]
+        result += f'{key}: {v}, '
+    return result
+
+def do_relabel_tree(metadata, relabels):
+    result = {}
+    for k, v in metadata.items():
+        key = k
+        if k in relabels.keys():
+            key = relabels[k]
+        result[key] = v
+    return result
+
+def render_print_tree(root, occludes=None, relabels=None, indent=0):
+    if isinstance(root, Run):
+        display = f"{str(root)}: "
+        show_attrs = root.metadata.keys() - root.rungroup.accumulated_attrs
+        if show_attrs:
+            if occludes:
+                show_attrs -= occludes
+            subset = root.metadata.subset(show_attrs)
+            attributes = str(subset)
+            if relabels:
+                attributes = str(do_relabel_tree(subset, relabels))
+            display += attributes
+        print(" " * indent + display)
+        return
+
+    if relabels:
+        root.metadata = do_relabel_tree(root.metadata, relabels)
+
+    print(" " * indent + str(root))
+
+    for node in root.children:
+        render_print_tree(node, occludes, relabels, indent + 2)

@@ -135,12 +135,3 @@ class BenchArt:
             groups = current_level
 
         return og.children[0]
-
-    def print_tree(self, root, indent=0):
-        print(" " * indent + repr(root))
-
-        if isinstance(root, Run):
-            return
-
-        for node in root.children:
-            self.print_tree(node, indent + 2)
