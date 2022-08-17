@@ -4,6 +4,9 @@ from metadata import RunMetadata
 import pprint
 
 class Run:
+    """
+    The data and metadata produced by a single instance of running a benchmark.
+    """
     def __init__(self, id, data, metadata, filename):
         self.id = id
         self.data = data
@@ -22,7 +25,12 @@ class Run:
     def __repr__(self):
         return "Run %s" % (str(self.id))
 
+
 class Step:
+    """
+    A set of attributes used at once to evaluate the equality of Runs in a
+    RunGroup.
+    """
     def __init__(self, attrs):
         self.attrs = attrs
 
@@ -39,11 +47,20 @@ class Step:
     def __repr__(self):
         return f'Step attributes: {self.attrs}'
 
+
 class IgnoreStep(Step):
+    """
+    A wrapper Step which precludes attributes specified by the user as
+    "ignored" from being used when grouping Runs in a RunGroup
+    """
     def use(self, parent):
         return []
 
+
 class RunGroup:
+    """
+    A grouping of Runs which share certain metadata attributes
+    """
     def __init__(self, parent, shared_metadata, children=None):
         self.metadata = shared_metadata
         self.parent = parent
@@ -80,8 +97,27 @@ class RunGroup:
             else:
                 yield from child.iterruns()
 
+
 class BenchArt:
+    """
+    A tree whose non-leaf nodes are RunGroups and leaf nodes are Runs.
+    The user creates a BenchArt using a list of Runs with properly prepared
+    RunMetadata.
+    The user then partitions the BenchArt specifying target attributes and
+    Renderers for each partition.
+    Any attributes which the user would like to exclude from the grouping
+    process when creating the tree are specified during the "ignore" step.
+    Steps created during partitioning are run.
+    The tree has three "layers" (though it may have many more "levels" composed
+    of sibling RunGroups). The first layer is all attributes on which all Runs
+    agree. The second is all attributes which are neither agreed upon by all
+    nor in the user-specified partitioning attributes. The third layer of
+    RunGroups is all the user-specified attributes. This layer may be composed
+    of many levels of sibling RunGroups.
+    After running the BenchArt, the tree of RunGroups can be rendered.
+    """
     def __init__(self, runs):
+        # A list of Runs
         self.runs = runs
         # We assume loader has standardized all runs to have the same keys
         self.all_attrs = runs[0].metadata.keys()
@@ -93,6 +129,7 @@ class BenchArt:
         self.renderers.append(renderer)
         self.user_steps.append(Step(set(attrs)))
 
+    # All attributes which won't be used when grouping Runs into RunGroups
     def ignore(self, *attrs):
         return self.user_steps.append(IgnoreStep(set(attrs)))
 
@@ -107,9 +144,8 @@ class BenchArt:
 
         return all_shared_attrs
 
-    # runs is a list of Runs
-    # user_groups is a list of set(str), for example [{"ver", "hp"}, {"bfa"}]
     def run(self):
+        # a list of set(str), for example [{"ver", "hp"}, {"bfa"}]
         steps = []
         # Find all the attributes on which all runs agree
         all_shared_attrs = self.get_all_shared_attrs()

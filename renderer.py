@@ -30,6 +30,8 @@ class Result:
 
 class Renderer:
     def __init__(self, relabels={}):
+        # relabels are used on Metadata to make long metadata names shorter for
+        # labels and titles.
         self.relabels = relabels
 
 
@@ -105,6 +107,10 @@ class PlotRenderer(Renderer):
     def label(self, result):
         prefix = f'Run {str(result.run_id)}'
         show_attrs = result.metadata.keys() - result.run.rungroup.accumulated_attrs
+        # Attributes which will be occluded must be passed as ignores into
+        # BenchArt.ignore() so that they are not used in grouping Runs into
+        # RunGroups. Occludes are not included in the final label for Runs in a
+        # chart.
         if self.occludes:
             show_attrs -= self.occludes
         if not show_attrs:
