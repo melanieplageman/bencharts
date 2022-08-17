@@ -1,13 +1,8 @@
 import matplotlib.pyplot as plt
-from renderer import SubfigureRenderer, render_print_tree
-import os
-import sys
-from benchart import BenchArt, Run
-from metadata import RunMetadata
-from loader import Loader, flatten, extract, normalize
+from renderer import render_print_tree
+from benchart import BenchArt
+from loader import Loader
 from discards import *
-import json
-import collections
 
 
 load_root = 'run_data'
