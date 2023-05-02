@@ -13,7 +13,7 @@ class Result:
     def __init__(self, run, timebound=0, relabels={}):
         self.run = run
         self.run_id = run.id
-        self.df = pd.DataFrame(run.data)
+        self.df = pd.DataFrame(run.all_data[0])
 
         self.metadata = run.metadata
         self.relabels = relabels
