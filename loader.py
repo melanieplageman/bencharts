@@ -37,27 +37,6 @@ class Loader:
     def do_discard(self, all_info):
         return any(discard(all_info, *args, **kwargs) for discard, args, kwargs in self.discards)
 
-    def run(self, data_expr, metadata_expr, timeline=None):
-        runs = []
-        for i, datafile in enumerate(os.listdir(self.root)):
-            all_info = extract(os.path.join(self.root, datafile))
-            if self.do_discard(all_info):
-                continue
-            metadata = metadata_expr(all_info)
-            data = pd.DataFrame(data_expr(all_info))
-            if timeline:
-                data[timeline] = pd.to_datetime(data[timeline])
-                zero = data[timeline].min()
-                data['relative_time'] = (data[timeline] - zero).apply(
-                    lambda t: t.total_seconds())
-
-            runs.append(Run(i + 1, data, RunMetadata(flatten(metadata)),
-                            os.path.join(self.root, datafile)))
-        normalize(runs)
-        return runs
-
-
-class MultiLoader(Loader):
     def run(self, data_exprs, metadata_expr, timeline=None):
         runs = []
         for i, datafile in enumerate(os.listdir(self.root)):
@@ -65,36 +44,45 @@ class MultiLoader(Loader):
             if self.do_discard(all_info):
                 continue
             metadata = metadata_expr(all_info)
-            all_data = {}
-            mins = []
-            for name, data_expr in data_exprs.items():
-                data = pd.DataFrame(data_expr(all_info))
-                if timeline:
-                    data[timeline] = pd.to_datetime(data[timeline])
-                    mins.append(data[timeline].min())
 
-                data = data.add_prefix(name + '_')
-                all_data[name] = data
+            data = informed_extract_to_df(data_exprs, all_info, timeline)
 
-            all_frames = []
-            if timeline:
-                zero = min(mins)
-                for name, frame in all_data.items():
-                    frame['relative_time'] = (frame[name + '_' + timeline] - zero).apply(
-                        lambda t: t.total_seconds())
-                    frame = frame.drop(columns=[name + '_' + timeline])
-                    frame = frame.set_index('relative_time')
-                    all_frames.append(frame)
-            else:
-                all_frames = list(all_data.values())
-
-            final_df = pd.concat(all_frames)
-
-            runs.append(Run(i + 1, final_df, RunMetadata(flatten(metadata)),
+            runs.append(Run(i + 1, data, RunMetadata(flatten(metadata)),
                             os.path.join(self.root, datafile)))
-
         normalize(runs)
         return runs
+
+def informed_extract_to_df(exprs, text, timeline):
+    if timeline:
+        return informed_extract_to_df_w_timeline(exprs, text, timeline)
+    all_frames = []
+    for name, data_expr in exprs.items():
+        data = pd.DataFrame(data_expr(text))
+        data = data.add_prefix(name + '_')
+        all_frames.append(data)
+    return pd.concat(all_frames)
+
+
+def informed_extract_to_df_w_timeline(exprs, text, timeline):
+    all_data = {}
+    mins = []
+    for name, data_expr in exprs.items():
+        data = pd.DataFrame(data_expr(text))
+        data[timeline] = pd.to_datetime(data[timeline])
+        mins.append(data[timeline].min())
+        data = data.add_prefix(name + '_')
+        all_data[name] = data
+
+    all_frames = []
+    zero = min(mins)
+    for name, frame in all_data.items():
+        frame['relative_time'] = (frame[name + '_' + timeline] - zero).apply(
+            lambda t: t.total_seconds())
+        frame = frame.drop(columns=[name + '_' + timeline])
+        frame = frame.set_index('relative_time')
+        all_frames.append(frame)
+
+    return pd.concat(all_frames)
 
 
 # inspo from

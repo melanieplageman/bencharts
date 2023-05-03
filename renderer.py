@@ -17,8 +17,8 @@ class Result:
         self.metadata = run.metadata
         self.relabels = relabels
 
-    def plot(self, ax):
-        self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['hostname'])
+    def plot(self, ax, label):
+        self.df.plot(y='pgbench_tps', ax=ax, label=label)
 
 
 class Renderer:
@@ -87,8 +87,7 @@ class PlotRenderer(Renderer):
             results = self.flatten(run_group, timebound)
 
         for result in results:
-            result.df.plot(x='relative_time', y='tps', ax=ax,
-                           label=self.label(result))
+            result.plot(ax=ax, label=self.label(result))
 
         # Display each tick on the X axis as MM:SS
         ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
