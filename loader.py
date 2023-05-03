@@ -2,8 +2,9 @@
 
 from collections.abc import MutableMapping
 import json
-from metadata import RunMetadata
 import os
+import pandas as pd
+from metadata import RunMetadata
 from benchart import Run, RunMetadata
 
 
