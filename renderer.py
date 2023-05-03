@@ -185,3 +185,13 @@ def render_print_tree(root, occludes=None, relabels=None, indent=0):
 
     for node in root.children:
         render_print_tree(node, occludes, relabels, indent + 2)
+
+
+def render_multi_result(figure, runs, timecol, all_ys, yscale_log=True):
+    axes = {}
+    for i, key in enumerate(all_ys, 1):
+        axes[key] = figure.add_subplot(len(all_ys), 1, i)
+
+    for run in runs:
+        result = SubResult(run)
+        result.plot(axes, all_ys)
