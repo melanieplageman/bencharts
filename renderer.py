@@ -13,16 +13,9 @@ class Result:
     def __init__(self, run, timebound=0, relabels={}):
         self.run = run
         self.run_id = run.id
-        self.df = pd.DataFrame(run.all_data)
-
+        self.df = run.all_data[timebound:]
         self.metadata = run.metadata
         self.relabels = relabels
-
-        self.df['ts'] = pd.to_datetime(self.df['ts'])
-        zero = self.df['ts'].min()
-        self.df['relative_time'] = (self.df['ts'] - zero).apply(
-            lambda t: t.total_seconds())
-        self.df = self.df[timebound:]
 
     def plot(self, ax):
         self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['hostname'])
