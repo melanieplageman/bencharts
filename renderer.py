@@ -13,7 +13,7 @@ class Result:
     def __init__(self, run, timebound=0, relabels={}):
         self.run = run
         self.run_id = run.id
-        self.df = pd.DataFrame(run.all_data[0])
+        self.df = pd.DataFrame(run.all_data)
 
         self.metadata = run.metadata
         self.relabels = relabels
@@ -25,7 +25,7 @@ class Result:
         self.df = self.df[timebound:]
 
     def plot(self, ax):
-        self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['machine_id'])
+        self.df.plot(x='ts', y='tps', ax=ax, label=self.metadata['hostname'])
 
 
 class Renderer:

@@ -36,14 +36,29 @@ class Loader:
     def do_discard(self, all_info):
         return any(discard(all_info, *args, **kwargs) for discard, args, kwargs in self.discards)
 
+    def run(self, data_expr, metadata_expr):
+        runs = []
+        for i, datafile in enumerate(os.listdir(self.root)):
+            all_info = extract(os.path.join(self.root, datafile))
+            metadata = metadata_expr(all_info)
+            data = data_expr(all_info)
+            if self.do_discard(all_info):
+                continue
+            runs.append(Run(i + 1, data, RunMetadata(flatten(metadata)),
+                            os.path.join(self.root, datafile)))
+
+        normalize(runs)
+        return runs
+
+class MultiLoader(Loader):
     def run(self, data_exprs, metadata_expr):
         runs = []
         for i, datafile in enumerate(os.listdir(self.root)):
             all_info = extract(os.path.join(self.root, datafile))
             metadata = metadata_expr(all_info)
-            all_data = []
-            for data_expr in data_exprs:
-                all_data.append(data_expr(all_info))
+            all_data = {}
+            for name, data_expr in data_exprs.items():
+                all_data[name] = data_expr(all_info)
             if self.do_discard(all_info):
                 continue
             runs.append(Run(i + 1, all_data, RunMetadata(flatten(metadata)),
