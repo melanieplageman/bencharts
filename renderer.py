@@ -7,18 +7,25 @@ DEBUG = False
 
 class Result:
     """
-    Optional timebound determines start time.
-    TODO: make it do endtime too
+    TODO: make timebound ranges work. These don't work for SubResult because it
+    has a non-unique index
     """
     def __init__(self, run, timebound=0, relabels={}):
         self.run = run
         self.run_id = run.id
-        self.df = run.all_data[timebound:]
+        self.df = run.all_data
         self.metadata = run.metadata
         self.relabels = relabels
 
     def plot(self, ax, label):
         self.df.plot(y='pgbench_tps', ax=ax, label=label)
+
+class SubResult(Result):
+    def plot(self, axes, all_ys):
+        for key in self.df.columns:
+            if key not in all_ys:
+                continue
+            self.df.plot(y=key, ax=axes[key], ylabel=key, label='')
 
 
 class Renderer:
