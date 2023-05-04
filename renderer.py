@@ -186,12 +186,19 @@ def render_print_tree(root, occludes=None, relabels=None, indent=0):
     for node in root.children:
         render_print_tree(node, occludes, relabels, indent + 2)
 
+def render_multi_result(node, all_ys, occludes=None):
+    # If we are a second to leaf RunGroup
+    if hasattr(node, 'children') and isinstance(node.children[0], Run):
+        figure = plt.figure(figsize=(15,60))
+        axes = {}
+        for i, key in enumerate(all_ys, 1):
+            axes[key] = figure.add_subplot(len(all_ys), 1, i)
 
-def render_multi_result(figure, runs, timecol, all_ys, yscale_log=True):
-    axes = {}
-    for i, key in enumerate(all_ys, 1):
-        axes[key] = figure.add_subplot(len(all_ys), 1, i)
+        for child in node.children:
+            result = SubResult(child)
+            result.plot(axes, all_ys)
+        return
 
-    for run in runs:
-        result = SubResult(run)
-        result.plot(axes, all_ys)
+    # TODO: make it have labels and titles
+    for child in node.children:
+        render_multi_result(child, all_ys, occludes)
