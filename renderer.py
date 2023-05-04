@@ -17,8 +17,8 @@ class Result:
         self.metadata = run.metadata
         self.relabels = relabels
 
-    def plot(self, ax, label):
-        self.df.plot(y='pgbench_tps', ax=ax, label=label)
+    def plot(self, ax, y, label):
+        self.df.plot(y=y, ax=ax, label=label)
 
 
 class SubResult(Result):
@@ -101,9 +101,10 @@ class PlotRenderer(Renderer):
     every Run's data of the passed in Run or Run children of the passed-in
     RunGroup on the passed-in axis.
     """
-    def __init__(self, *args, occludes=None, **kwargs):
+    def __init__(self, all_ys, *args, occludes=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.occludes = occludes
+        self.all_ys = all_ys
 
     def __call__(self, renderers, run_group, ax, timebound=0, set_title=False, indent=0):
         results = []
@@ -116,7 +117,7 @@ class PlotRenderer(Renderer):
             results = self.flatten(run_group, timebound)
 
         for result in results:
-            result.plot(ax=ax, label=self.label(result))
+            result.plot(ax=ax, y=self.all_ys[0], label=self.label(result))
 
         # Display each tick on the X axis as MM:SS
         ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
@@ -151,7 +152,7 @@ class PlotRenderer(Renderer):
         return output
 
 
-def render(benchart, figure, timebound, relabels):
+def render(benchart, figure, all_ys, timebound, relabels):
     root = benchart.run()
 
     # The title often includes many shared attributes. This will be
@@ -162,7 +163,7 @@ def render(benchart, figure, timebound, relabels):
         SubfigureRenderer(relabels),
         *benchart.renderers,
         AxesRenderer(relabels),
-        PlotRenderer(relabels, occludes=benchart.ignores),
+        PlotRenderer(all_ys, relabels, occludes=benchart.ignores),
     ]
 
     renderers[0](renderers[1:], root, figure, timebound, set_title=False)
