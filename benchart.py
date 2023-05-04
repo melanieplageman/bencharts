@@ -7,10 +7,11 @@ class Run:
     """
     The data and metadata produced by a single instance of running a benchmark.
     """
-    def __init__(self, id, all_data, metadata, filename):
+    def __init__(self, id, all_data, metadata, stats, filename):
         self.id = id
         self.all_data = all_data
         self.metadata = RunMetadata(metadata)
+        self.stats = stats
         self.rungroup = None
         self.filename = filename
 

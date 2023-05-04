@@ -37,17 +37,18 @@ class Loader:
     def do_discard(self, all_info):
         return any(discard(all_info, *args, **kwargs) for discard, args, kwargs in self.discards)
 
-    def run(self, data_exprs, metadata_expr, timeline=None):
+    def run(self, data_exprs, metadata_expr, stats_expr, timeline=None):
         runs = []
         for i, datafile in enumerate(os.listdir(self.root)):
             all_info = extract(os.path.join(self.root, datafile))
             if self.do_discard(all_info):
                 continue
             metadata = metadata_expr(all_info)
+            stats = stats_expr(all_info)
 
             data = informed_extract_to_df(data_exprs, all_info, timeline)
 
-            runs.append(Run(i + 1, data, RunMetadata(flatten(metadata)),
+            runs.append(Run(i + 1, data, RunMetadata(flatten(metadata)), stats,
                             os.path.join(self.root, datafile)))
         normalize(runs)
         return runs
