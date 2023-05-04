@@ -134,7 +134,6 @@ def render(benchart, figure, timebound, relabels):
     # The title often includes many shared attributes. This will be
     # displayed as collapsible JSON instead of using it as a title
     title = collections.OrderedDict(sorted(root.metadata.metadata.items()))
-    print(benchart.ignores)
 
     renderers = [
         SubfigureRenderer(relabels),
