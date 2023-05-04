@@ -209,19 +209,35 @@ def render_print_tree(root, occludes=None, relabels=None, indent=0):
     for node in root.children:
         render_print_tree(node, occludes, relabels, indent + 2)
 
-def render_multi_result(node, all_ys, occludes=None):
-    # If we are a second to leaf RunGroup
-    if hasattr(node, 'children') and isinstance(node.children[0], Run):
-        figure = plt.figure(figsize=(15,60))
+# TODO: render_multi() should subclass a Renderer probably
+def render_multi(benchart, all_ys, figsize, extra_title_expr):
+    root = benchart.run()
+    all_axes = []
+    # Since we are making a new figure and set of axes for each leaf parent, we
+    # can't use a DFT to plot this. We could do a BFT but it seems easier to
+    # just get all the leaf parents in a list and then plot their runs.
+    leaf_parents = []
+    get_all_leaf_parents(root, leaf_parents)
+    for parent in leaf_parents:
+        figure = plt.figure(figsize=figsize)
         axes = {}
         for i, key in enumerate(all_ys, 1):
             axes[key] = figure.add_subplot(len(all_ys), 1, i)
+        axes[all_ys[0]].set_title(
+            extra_title_expr(parent.children) + \
+            parent.accumulated_metadata.minus(root.metadata).pretty_print()
+        )
 
-        for child in node.children:
-            result = SubResult(child)
-            result.plot(axes, all_ys)
+        for child in parent.children:
+            result = SubResult(child, occludes=benchart.ignores)
+            result.plot(axes, all_ys, sharex=axes[all_ys[0]])
+        all_axes.append(axes)
+    return all_axes
+
+# TODO: make this not mutate the list probably
+def get_all_leaf_parents(node, leaf_parents):
+    if hasattr(node, 'children') and isinstance(node.children[0], Run):
+        leaf_parents.append(node)
         return
-
-    # TODO: make it have labels and titles
     for child in node.children:
-        render_multi_result(child, all_ys, occludes)
+        get_all_leaf_parents(child, leaf_parents)
