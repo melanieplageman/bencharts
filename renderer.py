@@ -20,12 +20,34 @@ class Result:
     def plot(self, ax, label):
         self.df.plot(y='pgbench_tps', ax=ax, label=label)
 
+
 class SubResult(Result):
-    def plot(self, axes, all_ys):
+    def __init__(self, *args, occludes=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.occludes = occludes
+
+    def plot(self, axes, all_ys, sharex):
         for key in self.df.columns:
             if key not in all_ys:
                 continue
-            self.df.plot(y=key, ax=axes[key], ylabel=key, label='')
+            self.df.plot(y=key, ax=axes[key], ylabel=key, sharex=sharex,
+                         label=self.label())
+
+    # TODO: this is basically the same as the PlotRenderer, so perhaps we can
+    # subclass that or somehow make render_multi() more normal
+    def label(self):
+        prefix = f'Run {str(self.run_id)}'
+        show_attrs = self.metadata.keys() - self.run.rungroup.accumulated_attrs
+        # Attributes which will be occluded must be passed as ignores into
+        # BenchArt.ignore() so that they are not used in grouping Runs into
+        # RunGroups. Occludes are not included in the final label for Runs in a
+        # chart.
+        if self.occludes:
+            show_attrs -= self.occludes
+        if not show_attrs:
+            return prefix
+        subset = self.metadata.subset(show_attrs)
+        return prefix + ': ' + do_relabel_str(subset, self.relabels)
 
 
 class Renderer:
@@ -103,6 +125,7 @@ class PlotRenderer(Renderer):
         pd.set_option('display.max_colwidth', None)
         # print(pdf)
 
+    # TODO: perhaps this can be moved into the result?
     def label(self, result):
         prefix = f'Run {str(result.run_id)}'
         show_attrs = result.metadata.keys() - result.run.rungroup.accumulated_attrs
