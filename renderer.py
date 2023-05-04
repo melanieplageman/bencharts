@@ -128,18 +128,19 @@ class PlotRenderer(Renderer):
         return output
 
 
-def render(benchart, figure, timebound, relabels, occludes=None):
+def render(benchart, figure, timebound, relabels):
     root = benchart.run()
 
     # The title often includes many shared attributes. This will be
     # displayed as collapsible JSON instead of using it as a title
     title = collections.OrderedDict(sorted(root.metadata.metadata.items()))
+    print(benchart.ignores)
 
     renderers = [
         SubfigureRenderer(relabels),
         *benchart.renderers,
         AxesRenderer(relabels),
-        PlotRenderer(relabels, occludes=occludes),
+        PlotRenderer(relabels, occludes=benchart.ignores),
     ]
 
     renderers[0](renderers[1:], root, figure, timebound, set_title=False)

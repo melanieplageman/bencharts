@@ -123,6 +123,7 @@ class BenchArt:
         self.all_attrs = runs[0].metadata.keys()
         self.user_steps = []
         self.renderers = []
+        self.ignores = set()
 
     # these must be appended in order
     def part(self, renderer, *attrs):
@@ -135,6 +136,7 @@ class BenchArt:
 
     # All attributes which won't be used when grouping Runs into RunGroups
     def ignore(self, *attrs):
+        self.ignores.update(attrs)
         return self.user_steps.append(IgnoreStep(set(attrs)))
 
     # returns a set of string, which are the attributes on which all runs agree
