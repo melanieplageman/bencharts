@@ -129,6 +129,10 @@ class BenchArt:
         self.renderers.append(renderer)
         self.user_steps.append(Step(set(attrs)))
 
+    # What the user actually wants to compare
+    def versus(self, *attrs):
+        return self.user_steps.append(IgnoreStep(set(attrs)))
+
     # All attributes which won't be used when grouping Runs into RunGroups
     def ignore(self, *attrs):
         return self.user_steps.append(IgnoreStep(set(attrs)))
