@@ -31,6 +31,21 @@ class RunMetadata(Mapping):
     def values(self):
         return self.metadata.values()
 
+    # Given other, a RunMetadata, return a RunMetadata which includes all of
+    # the contents of both with no duplicates
+    def union(self, other):
+        return RunMetadata(self.metadata | other.metadata)
+
+    # Return a RunMetadata containing only the metadata in self that was not
+    # exactly the same in other
+    def minus(self, other):
+        result = {}
+        for k, v in self.metadata.items():
+            if k in other.metadata and other.metadata[k] == v:
+                continue
+            result[k] = v
+        return RunMetadata(result)
+
     def subset(self, chosen_keys):
         return RunMetadata({ k: v for k, v in self.metadata.items() if k in chosen_keys})
 

@@ -90,6 +90,15 @@ class RunGroup:
             result |= self.parent.accumulated_attrs
         return result
 
+    # A RunMetadata containing all of the metadata of a RunGroup and all its
+    # ancestors
+    @property
+    def accumulated_metadata(self):
+        if self.parent is not None and self.parent.metadata is not None:
+            return self.metadata.union(self.parent.accumulated_metadata)
+        else:
+            return self.metadata
+
     def iterruns(self):
         for child in self.children:
             if isinstance(child, Run):
