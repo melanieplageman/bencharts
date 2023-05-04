@@ -7,7 +7,7 @@ DEBUG = False
 
 class Result:
     """
-    TODO: make timebound ranges work. These don't work for SubResult because it
+    TODO: make timebound ranges work. These don't work for MultiResult because it
     has a non-unique index
     """
     def __init__(self, run, timebound=0, relabels={}):
@@ -21,7 +21,7 @@ class Result:
         self.df.plot(y=y, ax=ax, label=label)
 
 
-class SubResult(Result):
+class MultiResult(Result):
     def __init__(self, *args, occludes=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.occludes = occludes
@@ -230,7 +230,7 @@ def render_multi(benchart, all_ys, figsize, extra_title_expr):
         )
 
         for child in parent.children:
-            result = SubResult(child, occludes=benchart.ignores)
+            result = MultiResult(child, occludes=benchart.ignores)
             result.plot(axes, all_ys, sharex=axes[all_ys[0]])
         all_axes.append(axes)
     return all_axes
