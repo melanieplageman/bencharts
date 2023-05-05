@@ -82,9 +82,10 @@ def informed_extract_to_df_w_timeline(exprs, text, timeline: str):
     all_frames = []
     zero = min(mins)
     for name, frame in all_data.items():
+        # If we want to see the timedelta as Days + Seconds, we can get rid of
+        # total_seconds()
         frame['relative_time'] = (frame[name + '_' + timeline] - zero).apply(
             lambda t: t.total_seconds())
-        frame = frame.drop(columns=[name + '_' + timeline])
         all_frames.append(frame)
 
     df_final = ft.reduce(
