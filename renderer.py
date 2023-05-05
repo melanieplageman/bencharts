@@ -16,21 +16,25 @@ class Result:
         self.df = run.all_data
         self.metadata = run.metadata
         self.relabels = relabels
+        self.timebound = timebound
 
     def plot(self, ax, y, label):
-        self.df.plot(y=y, ax=ax, label=label)
+        df = self.df[self.timebound:]
+        df.plot(y=y, ax=ax, label=label)
 
 
 class MultiResult(Result):
-    def __init__(self, *args, occludes=None, **kwargs):
+    def __init__(self, *args, timebound=0, occludes=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.occludes = occludes
+        self.timebound = timebound
 
     def plot(self, axes, all_ys, sharex):
         for key in self.df.columns:
             if key not in all_ys:
                 continue
-            self.df.plot(y=key, ax=axes[key], ylabel=key, sharex=sharex,
+            df = self.df[self.timebound:]
+            df.plot(y=key, ax=axes[key], ylabel=key, sharex=sharex,
                          label=self.label())
 
     # TODO: this is basically the same as the PlotRenderer, so perhaps we can
@@ -76,7 +80,8 @@ class SubfigureRenderer(Renderer):
                                     squeeze=False)
 
         for i, child in enumerate(run_group.children):
-            renderer(renderers, child, subfigs[i][0], indent + 2)
+            renderer(renderers, child, subfigs[i][0], timebound=timebound,
+                     indent=indent + 2)
 
 
 class AxesRenderer(Renderer):
@@ -92,7 +97,7 @@ class AxesRenderer(Renderer):
         if set_title:
             ax.set_title(do_relabel_str(run_group.metadata, self.relabels))
 
-        renderer(renderers, run_group, ax, indent + 2)
+        renderer(renderers, run_group, ax, timebound=timebound, indent=indent + 2)
 
 
 class PlotRenderer(Renderer):
@@ -211,7 +216,7 @@ def render_print_tree(root, occludes=None, relabels=None, indent=0):
         render_print_tree(node, occludes, relabels, indent + 2)
 
 # TODO: render_multi() should subclass a Renderer probably
-def render_multi(benchart, all_ys, figsize, extra_title_expr):
+def render_multi(benchart, all_ys, timebound, figsize, extra_title_expr):
     root = benchart.run()
     all_axes = []
     # Since we are making a new figure and set of axes for each leaf parent, we
@@ -230,7 +235,7 @@ def render_multi(benchart, all_ys, figsize, extra_title_expr):
         )
 
         for child in parent.children:
-            result = MultiResult(child, occludes=benchart.ignores)
+            result = MultiResult(child, timebound=timebound, occludes=benchart.ignores)
             result.plot(axes, all_ys, sharex=axes[all_ys[0]])
         all_axes.append(axes)
     return all_axes

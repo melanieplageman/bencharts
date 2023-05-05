@@ -3,6 +3,7 @@
 from collections.abc import MutableMapping
 import json
 import os
+import functools as ft
 import pandas as pd
 from metadata import RunMetadata
 from benchart import Run, RunMetadata
@@ -61,10 +62,14 @@ def informed_extract_to_df(exprs, text, timeline):
         data = pd.DataFrame(data_expr(text))
         data = data.add_prefix(name + '_')
         all_frames.append(data)
-    return pd.concat(all_frames)
+    df_final = ft.reduce(lambda left, right: pd.merge(left, right, how='outer',
+                                                      on='relative_time'), all_frames)
+    df_final = df_final.set_index('relative_time')
+    return df_final
 
 
-def informed_extract_to_df_w_timeline(exprs, text, timeline):
+# TODO: change data_expr to return a timeline
+def informed_extract_to_df_w_timeline(exprs, text, timeline: str):
     all_data = {}
     mins = []
     for name, data_expr in exprs.items():
@@ -80,10 +85,16 @@ def informed_extract_to_df_w_timeline(exprs, text, timeline):
         frame['relative_time'] = (frame[name + '_' + timeline] - zero).apply(
             lambda t: t.total_seconds())
         frame = frame.drop(columns=[name + '_' + timeline])
-        frame = frame.set_index('relative_time')
         all_frames.append(frame)
 
-    return pd.concat(all_frames)
+    df_final = ft.reduce(
+        lambda left, right: pd.merge(
+            left, right, how='outer', on='relative_time'),
+        all_frames)
+
+    df_final = df_final.set_index('relative_time')
+
+    return df_final
 
 
 # inspo from
