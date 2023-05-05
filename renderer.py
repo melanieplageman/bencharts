@@ -6,20 +6,16 @@ import collections
 DEBUG = False
 
 class Result:
-    """
-    TODO: make timebound ranges work. These don't work for MultiResult because it
-    has a non-unique index
-    """
-    def __init__(self, run, timebound=0, relabels={}):
+    def __init__(self, run, timebounds=(0,None), relabels={}):
         self.run = run
         self.run_id = run.id
         self.df = run.all_data
         self.metadata = run.metadata
         self.relabels = relabels
-        self.timebound = timebound
+        self.timebounds = timebounds
 
     def plot(self, ax, y, label):
-        df = self.df[self.timebound:]
+        df = self.df[self.timebounds[0]:self.timebounds[1]]
         df.plot(y=y, ax=ax, label=label)
 
 
@@ -66,7 +62,7 @@ class SubfigureRenderer(Renderer):
     for every RunGroup child of the passed-in run_group within the passed-in
     parent figure or subfigure.
     """
-    def __call__(self, renderers, run_group, subfig, timebound=0, set_title=True, indent=0):
+    def __call__(self, renderers, run_group, subfig, timebounds=(0,None), set_title=True, indent=0):
         renderer, *renderers = renderers
 
         if set_title:
@@ -79,7 +75,7 @@ class SubfigureRenderer(Renderer):
                                     squeeze=False)
 
         for i, child in enumerate(run_group.children):
-            renderer(renderers, child, subfigs[i][0], timebound=timebound,
+            renderer(renderers, child, subfigs[i][0], timebounds=timebounds,
                      indent=indent + 2)
 
 
@@ -89,14 +85,14 @@ class AxesRenderer(Renderer):
     subplot) for every child of the passed-in RunGroup within the passed-in
     subfigure.
     """
-    def __call__(self, renderers, run_group, subfig, timebound=0, set_title=True, indent=0):
+    def __call__(self, renderers, run_group, subfig, timebounds=(0,None), set_title=True, indent=0):
         renderer, *renderers = renderers
 
         ax = subfig.add_subplot()
         if set_title:
             ax.set_title(do_relabel_str(run_group.metadata, self.relabels))
 
-        renderer(renderers, run_group, ax, timebound=timebound, indent=indent + 2)
+        renderer(renderers, run_group, ax, timebounds=timebounds, indent=indent + 2)
 
 
 class PlotRenderer(Renderer):
@@ -110,15 +106,15 @@ class PlotRenderer(Renderer):
         self.occludes = occludes
         self.all_ys = all_ys
 
-    def __call__(self, renderers, run_group, ax, timebound=0, set_title=False, indent=0):
+    def __call__(self, renderers, run_group, ax, timebounds=(0,None), set_title=False, indent=0):
         results = []
         if isinstance(run_group, Run):
-            results = [Result(run_group, timebound, self.relabels)]
+            results = [Result(run_group, timebounds, self.relabels)]
 
         elif isinstance(run_group.children[0], Run):
-            results = [Result(run, timebound, self.relabels) for run in run_group.children]
+            results = [Result(run, timebounds, self.relabels) for run in run_group.children]
         else:
-            results = self.flatten(run_group, timebound)
+            results = self.flatten(run_group, timebounds)
 
         for result in results:
             result.plot(ax=ax, y=self.all_ys[0], label=self.label(result))
@@ -146,17 +142,17 @@ class PlotRenderer(Renderer):
 
         return prefix + ': ' + do_relabel_str(subset, result.relabels)
 
-    def flatten(self, node, timebound):
+    def flatten(self, node, timebounds):
         if isinstance(node, Run):
-            return [Result(node, timebound, self.relabels)]
+            return [Result(node, timebounds, self.relabels)]
 
         output = []
         for child in node.children:
-            output.extend(self.flatten(child, timebound))
+            output.extend(self.flatten(child, timebounds))
         return output
 
 
-def render(benchart, figure, all_ys, timebound, relabels):
+def render(benchart, figure, all_ys, timebounds, relabels):
     root = benchart.run()
 
     # The title often includes many shared attributes. This will be
@@ -170,7 +166,7 @@ def render(benchart, figure, all_ys, timebound, relabels):
         PlotRenderer(all_ys, relabels, occludes=benchart.ignores),
     ]
 
-    renderers[0](renderers[1:], root, figure, timebound, set_title=False)
+    renderers[0](renderers[1:], root, figure, timebounds, set_title=False)
     return root, title
 
 def do_relabel_str(metadata, relabels):
