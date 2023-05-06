@@ -38,7 +38,7 @@ class Loader:
     def do_discard(self, all_info):
         return any(discard(all_info, *args, **kwargs) for discard, args, kwargs in self.discards)
 
-    def run(self, data_exprs, metadata_expr, stats_expr, timeline=None):
+    def run(self, data_exprs, metadata_expr, stats_expr, timeline):
         runs = []
         for i, datafile in enumerate(os.listdir(self.root)):
             all_info = extract(os.path.join(self.root, datafile))
@@ -54,44 +54,20 @@ class Loader:
         normalize(runs)
         return runs
 
+
 def informed_extract_to_df(exprs, text, timeline):
-    if timeline:
-        return informed_extract_to_df_w_timeline(exprs, text, timeline)
-    all_frames = []
+    df_final = pd.DataFrame()
+
     for name, data_expr in exprs.items():
         data = pd.DataFrame(data_expr(text))
+        data[timeline] = pd.to_datetime(data[timeline], utc=True)
+        data = data.set_index(timeline)
         data = data.add_prefix(name + '_')
-        all_frames.append(data)
-    df_final = ft.reduce(lambda left, right: pd.merge(left, right, how='outer',
-                                                      on='relative_time'), all_frames)
-    df_final = df_final.set_index('relative_time')
-    return df_final
 
+        df_final = pd.merge(df_final, data, how='outer', left_index=True, right_index=True)
 
-# TODO: change data_expr to return a timeline
-def informed_extract_to_df_w_timeline(exprs, text, timeline: str):
-    all_data = {}
-    mins = []
-    for name, data_expr in exprs.items():
-        data = pd.DataFrame(data_expr(text))
-        data[timeline] = pd.to_datetime(data[timeline])
-        mins.append(data[timeline].min())
-        data = data.add_prefix(name + '_')
-        all_data[name] = data
-
-    all_frames = []
-    zero = min(mins)
-    for name, frame in all_data.items():
-        # total_seconds() seemed to make the data incorrect -- when it started
-        # and stopped
-        frame['relative_time'] = frame[name + '_' + timeline] - zero
-        all_frames.append(frame)
-
-    df_final = ft.reduce(
-        lambda left, right: pd.merge(
-            left, right, how='outer', on='relative_time'),
-        all_frames)
-
+    zero = df_final.index.min()
+    df_final['relative_time'] = df_final.index - zero
     df_final = df_final.set_index('relative_time')
 
     return df_final
