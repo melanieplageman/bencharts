@@ -29,8 +29,8 @@ class MultiResult(Result):
             if key not in all_ys:
                 continue
             df = self.df[timebounds[0]:timebounds[1]]
-            df.plot(y=key, ax=axes[key], ylabel=key, sharex=sharex,
-                         label=self.label())
+            df = df.interpolate(method='linear')
+            df.plot(y=key, ax=axes[key], ylabel=key, label=self.label())
 
     # TODO: this is basically the same as the PlotRenderer, so perhaps we can
     # subclass that or somehow make render_multi() more normal
