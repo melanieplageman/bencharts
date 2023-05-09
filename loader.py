@@ -59,12 +59,15 @@ def informed_extract_to_df(exprs, text, timeline):
     df_final = pd.DataFrame()
 
     for name, data_expr in exprs.items():
-        data = pd.DataFrame(data_expr(text))
-        data[timeline] = pd.to_datetime(data[timeline], utc=True)
-        data = data.set_index(timeline)
-        data = data.add_prefix(name + '_')
+        data = data_expr(text)
+        if data is None:
+            continue
+        df = pd.DataFrame(data)
+        df[timeline] = pd.to_datetime(df[timeline], utc=True)
+        df = df.set_index(timeline)
+        df = df.add_prefix(name + '_')
 
-        df_final = pd.merge(df_final, data, how='outer', left_index=True, right_index=True)
+        df_final = pd.merge(df_final, df, how='outer', left_index=True, right_index=True)
 
     zero = df_final.index.min()
     df_final['relative_time'] = df_final.index - zero
