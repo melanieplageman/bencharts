@@ -30,7 +30,8 @@ class MultiResult(Result):
                 continue
             df = self.df[timebounds[0]:timebounds[1]]
             df = df.interpolate(method='linear')
-            df.plot(y=key, ax=axes[key], ylabel=key, label=self.label())
+            df.plot(y=key, ax=axes[key], ylabel=key,
+                    sharex=sharex, label=self.label())
 
     # TODO: this is basically the same as the PlotRenderer, so perhaps we can
     # subclass that or somehow make render_multi() more normal
