@@ -1,6 +1,8 @@
+#!/usr/local/bin/python3
+
 import pandas as pd
 import matplotlib.pyplot as plt
-from benchart import Run
+from benchart import Run, RunGroup
 import collections
 
 DEBUG = False
@@ -16,6 +18,7 @@ class Result:
 
     def plot(self, ax, y, label):
         df = self.df[self.timebounds[0]:self.timebounds[1]]
+        df = df.interpolate(method='linear')
         df.plot(y=y, ax=ax, label=label)
 
 
@@ -107,7 +110,7 @@ class PlotRenderer(Renderer):
         self.occludes = occludes
         self.all_ys = all_ys
 
-    def __call__(self, renderers, run_group, ax, timebounds=(0,None), set_title=False, indent=0):
+    def __call__(self, renderers, run_group: Run | RunGroup, ax, timebounds=(0,None), set_title=False, indent=0):
         results = []
         if isinstance(run_group, Run):
             results = [Result(run_group, timebounds, self.relabels)]
