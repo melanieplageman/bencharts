@@ -7,51 +7,6 @@ import collections
 
 DEBUG = False
 
-class Result:
-    def __init__(self, run, timebounds=(0,None), relabels={}):
-        self.run = run
-        self.run_id = run.id
-        self.df = run.all_data
-        self.metadata = run.metadata
-        self.relabels = relabels
-        self.timebounds = timebounds
-
-    def plot(self, ax, y, label):
-        df = self.df[self.timebounds[0]:self.timebounds[1]]
-        df = df.interpolate(method='linear')
-        df.plot(y=y, ax=ax, label=label)
-
-
-class MultiResult(Result):
-    def __init__(self, *args, occludes=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.occludes = occludes
-
-    def plot(self, axes, all_ys, timebounds, sharex):
-        for key in self.df.columns:
-            if key not in all_ys:
-                continue
-            df = self.df[timebounds[0]:timebounds[1]]
-            df = df.interpolate(method='linear')
-            df.plot(y=key, ax=axes[key], ylabel=key,
-                    sharex=sharex, label=self.label())
-
-    # TODO: this is basically the same as the PlotRenderer, so perhaps we can
-    # subclass that or somehow make render_multi() more normal
-    def label(self):
-        prefix = f'Run {str(self.run_id)}'
-        show_attrs = self.metadata.keys() - self.run.rungroup.accumulated_attrs
-        # Attributes which will be occluded must be passed as ignores into
-        # BenchArt.ignore() so that they are not used in grouping Runs into
-        # RunGroups. Occludes are not included in the final label for Runs in a
-        # chart.
-        if self.occludes:
-            show_attrs -= self.occludes
-        if not show_attrs:
-            return prefix
-        subset = self.metadata.subset(show_attrs)
-        return prefix + ': ' + do_relabel_str(subset, self.relabels)
-
 
 class Renderer:
     def __init__(self, relabels={}):
@@ -111,17 +66,23 @@ class PlotRenderer(Renderer):
         self.all_ys = all_ys
 
     def __call__(self, renderers, run_group: Run | RunGroup, ax, timebounds=(0,None), set_title=False, indent=0):
-        results = []
+
         if isinstance(run_group, Run):
-            results = [Result(run_group, timebounds, self.relabels)]
+            run = run_group
+            df = run.all_data[timebounds[0]:timebounds[1]]
+            df = df.interpolate(method='linear')
+            df.plot(y=self.all_ys[0], ax=ax, label=self.label(run))
+            # Display each tick on the X axis as MM:SS
+            # ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
+            return
 
-        elif isinstance(run_group.children[0], Run):
-            results = [Result(run, timebounds, self.relabels) for run in run_group.children]
+        if isinstance(run_group.children[0], Run):
+            runs = run_group.children
         else:
-            results = self.flatten(run_group, timebounds)
+            runs = self.flatten(run_group, timebounds)
 
-        for result in results:
-            result.plot(ax=ax, y=self.all_ys[0], label=self.label(result))
+        for run in runs:
+            self(None, run, ax, timebounds=timebounds, indent=indent + 2)
 
         # Display each tick on the X axis as MM:SS
         ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
@@ -131,9 +92,9 @@ class PlotRenderer(Renderer):
         # print(pdf)
 
     # TODO: perhaps this can be moved into the result?
-    def label(self, result):
-        prefix = f'Run {str(result.run_id)}'
-        show_attrs = result.metadata.keys() - result.run.rungroup.accumulated_attrs
+    def label(self, run):
+        prefix = f'Run {str(run.id)}'
+        show_attrs = run.metadata.keys() - run.rungroup.accumulated_attrs
         # Attributes which will be occluded must be passed as ignores into
         # BenchArt.ignore() so that they are not used in grouping Runs into
         # RunGroups. Occludes are not included in the final label for Runs in a
@@ -142,13 +103,13 @@ class PlotRenderer(Renderer):
             show_attrs -= self.occludes
         if not show_attrs:
             return prefix
-        subset = result.metadata.subset(show_attrs)
+        subset = run.metadata.subset(show_attrs)
 
-        return prefix + ': ' + do_relabel_str(subset, result.relabels)
+        return prefix + ': ' + do_relabel_str(subset, self.relabels)
 
     def flatten(self, node, timebounds):
         if isinstance(node, Run):
-            return [Result(node, timebounds, self.relabels)]
+            return [node]
 
         output = []
         for child in node.children:
@@ -234,10 +195,31 @@ def render_multi(benchart, all_ys, timebounds, figsize, extra_title_expr):
         )
 
         for child in parent.children:
-            result = MultiResult(child, occludes=benchart.ignores)
-            result.plot(axes, all_ys, timebounds, sharex=axes[all_ys[0]])
+            for key in child.all_data.columns:
+                if key not in all_ys:
+                    continue
+                df = child.all_data[timebounds[0]:timebounds[1]]
+                df = df.interpolate(method='linear')
+                df.plot(y=key, ax=axes[key], ylabel=key,
+                        sharex=axes[all_ys[0]], label=get_label(child,
+                                                                benchart.ignores,
+                                                                {}))
         all_axes.append(axes)
     return all_axes
+
+def get_label(run, occludes, relabels):
+    prefix = f'Run {str(run.id)}'
+    show_attrs = run.metadata.keys() - run.rungroup.accumulated_attrs
+    # Attributes which will be occluded must be passed as ignores into
+    # BenchArt.ignore() so that they are not used in grouping Runs into
+    # RunGroups. Occludes are not included in the final label for Runs in a
+    # chart.
+    if occludes:
+        show_attrs -= occludes
+    if not show_attrs:
+        return prefix
+    subset = run.metadata.subset(show_attrs)
+    return prefix + ': ' + do_relabel_str(subset, relabels)
 
 # TODO: make this not mutate the list probably
 def get_all_leaf_parents(node, leaf_parents):
