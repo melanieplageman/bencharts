@@ -84,14 +84,11 @@ class PlotRenderer(Renderer):
         for run in runs:
             self(None, run, ax, timebounds=timebounds, indent=indent + 2)
 
-        # Display each tick on the X axis as MM:SS
-        ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
-        filenames = {result.run_id: result.run.filename for result in results}
-        pdf = pd.Series(filenames)
-        pd.set_option('display.max_colwidth', None)
+        # filenames = {result.run_id: result.run.filename for result in results}
+        # pdf = pd.Series(filenames)
+        # pd.set_option('display.max_colwidth', None)
         # print(pdf)
 
-    # TODO: perhaps this can be moved into the result?
     def label(self, run):
         prefix = f'Run {str(run.id)}'
         show_attrs = run.metadata.keys() - run.rungroup.accumulated_attrs
@@ -174,6 +171,43 @@ def render_print_tree(root, occludes=None, relabels=None, indent=0):
 
     for node in root.children:
         render_print_tree(node, occludes, relabels, indent + 2)
+
+class NullRenderer(Renderer):
+    def __call__(self, renderers, run_group, timebounds, figsize):
+        renderer, *renderers = renderers
+
+        figure = plt.figure(figsize=figsize)
+
+        renderer(renderers, run_group, figure, timebounds=timebounds)
+
+class FigureAllYsRenderer(Renderer):
+    def __init__(self, all_ys, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.all_ys = all_ys
+
+    def __call__(self, renderers, run_group, figure, timebounds):
+        renderer, *renderers = renderers
+
+        axes = {}
+        for i, key in enumerate(self.all_ys, 1):
+            axes[key] = figure.add_subplot(len(self.all_ys), 1, i)
+
+        for y in self.all_ys:
+            for child in run_group.children:
+                renderer(renderers, child, axes[y], timebounds=timebounds)
+
+def render_multi2(benchart, all_ys, figsize, timebounds, relabels):
+    root = benchart.run()
+    title = ''
+    renderers = [
+        NullRenderer(relabels),
+        *benchart.renderers,
+        FigureAllYsRenderer(all_ys),
+        PlotRenderer(all_ys, relabels),
+    ]
+    renderers[0](renderers[1:], root, timebounds, figsize)
+    return root, title
+
 
 # TODO: render_multi() should subclass a Renderer probably
 def render_multi(benchart, all_ys, timebounds, figsize, extra_title_expr):
