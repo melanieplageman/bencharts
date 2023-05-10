@@ -210,7 +210,7 @@ def render_multi2(benchart, all_ys, figsize, timebounds, relabels):
 
 
 # TODO: render_multi() should subclass a Renderer probably
-def render_multi(benchart, all_ys, timebounds, figsize, extra_title_expr):
+def render_multi(benchart, prefixes, timebounds, figwidth, extra_title_expr):
     root = benchart.run()
     all_axes = []
     # Since we are making a new figure and set of axes for each leaf parent, we
@@ -219,23 +219,35 @@ def render_multi(benchart, all_ys, timebounds, figsize, extra_title_expr):
     leaf_parents = []
     get_all_leaf_parents(root, leaf_parents)
     for parent in leaf_parents:
-        figure = plt.figure(figsize=figsize)
+        widest_child = parent.children[0]
+        for child in parent.children:
+            if len(child.all_data.columns) > len(widest_child.all_data.columns):
+                widest_child = child
+
+        cols_to_plot = []
+        for col in widest_child.all_data.columns:
+            if col.split('_')[0] not in prefixes:
+                continue
+            cols_to_plot.append(col)
+
+        length = len(cols_to_plot) * 4
+
+        figure = plt.figure(figsize=(figwidth,length))
         axes = {}
-        for i, key in enumerate(all_ys, 1):
-            axes[key] = figure.add_subplot(len(all_ys), 1, i)
-        axes[all_ys[0]].set_title(
+        for i, col in enumerate(cols_to_plot, 1):
+            axes[col] = figure.add_subplot(len(cols_to_plot), 1, i)
+
+        axes[cols_to_plot[0]].set_title(
             extra_title_expr(parent.children) + \
             parent.accumulated_metadata.minus(root.metadata).pretty_print()
         )
 
         for child in parent.children:
-            for key in child.all_data.columns:
-                if key not in all_ys:
-                    continue
+            for col in child.all_data.columns:
                 df = child.all_data[timebounds[0]:timebounds[1]]
                 df = df.interpolate(method='linear')
-                df.plot(y=key, ax=axes[key], ylabel=key,
-                        sharex=axes[all_ys[0]], label=get_label(child,
+                df.plot(y=col, ax=axes[col], ylabel=col,
+                        sharex=axes[cols_to_plot[0]], label=get_label(child,
                                                                 benchart.ignores,
                                                                 {}))
         all_axes.append(axes)
