@@ -210,7 +210,7 @@ def render_multi2(benchart, all_ys, figsize, timebounds, relabels):
 
 
 # TODO: render_multi() should subclass a Renderer probably
-def render_multi(benchart, timebounds, figwidth, extra_title_expr):
+def render_multi(benchart, timebounds, sorted_prefixes, figwidth, extra_title_expr):
     root = benchart.run()
     all_axes = []
     # Since we are making a new figure and set of axes for each leaf parent, we
@@ -223,7 +223,7 @@ def render_multi(benchart, timebounds, figwidth, extra_title_expr):
         for child in parent.children:
             cols.update(list(child.all_data.columns))
 
-        cols = list(cols)
+        cols = sorted(list(cols), key=lambda x: sorted_prefixes.index(x.split('_')[0]))
 
         figure = plt.figure(figsize=(figwidth, len(cols) * 4))
         axes = {}
