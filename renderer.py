@@ -210,7 +210,7 @@ def render_multi2(benchart, all_ys, figsize, timebounds, relabels):
 
 
 # TODO: render_multi() should subclass a Renderer probably
-def render_multi(benchart, prefixes, timebounds, figwidth, extra_title_expr):
+def render_multi(benchart, timebounds, figwidth, extra_title_expr):
     root = benchart.run()
     all_axes = []
     # Since we are making a new figure and set of axes for each leaf parent, we
@@ -224,20 +224,14 @@ def render_multi(benchart, prefixes, timebounds, figwidth, extra_title_expr):
             if len(child.all_data.columns) > len(widest_child.all_data.columns):
                 widest_child = child
 
-        cols_to_plot = []
-        for col in widest_child.all_data.columns:
-            if col.split('_')[0] not in prefixes:
-                continue
-            cols_to_plot.append(col)
+        cols = widest_child.all_data.columns
 
-        length = len(cols_to_plot) * 4
-
-        figure = plt.figure(figsize=(figwidth,length))
+        figure = plt.figure(figsize=(figwidth, len(cols) * 4))
         axes = {}
-        for i, col in enumerate(cols_to_plot, 1):
-            axes[col] = figure.add_subplot(len(cols_to_plot), 1, i)
+        for i, col in enumerate(cols, 1):
+            axes[col] = figure.add_subplot(len(cols), 1, i)
 
-        axes[cols_to_plot[0]].set_title(
+        axes[cols[0]].set_title(
             extra_title_expr(parent.children) + \
             parent.accumulated_metadata.minus(root.metadata).pretty_print()
         )
@@ -247,7 +241,7 @@ def render_multi(benchart, prefixes, timebounds, figwidth, extra_title_expr):
                 df = child.all_data[timebounds[0]:timebounds[1]]
                 df = df.interpolate(method='linear')
                 df.plot(y=col, ax=axes[col], ylabel=col,
-                        sharex=axes[cols_to_plot[0]], label=get_label(child,
+                        sharex=axes[cols[0]], label=get_label(child,
                                                                 benchart.ignores,
                                                                 {}))
         all_axes.append(axes)
