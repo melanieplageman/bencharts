@@ -219,12 +219,11 @@ def render_multi(benchart, timebounds, figwidth, extra_title_expr):
     leaf_parents = []
     get_all_leaf_parents(root, leaf_parents)
     for parent in leaf_parents:
-        widest_child = parent.children[0]
+        cols = set()
         for child in parent.children:
-            if len(child.all_data.columns) > len(widest_child.all_data.columns):
-                widest_child = child
+            cols.update(list(child.all_data.columns))
 
-        cols = widest_child.all_data.columns
+        cols = list(cols)
 
         figure = plt.figure(figsize=(figwidth, len(cols) * 4))
         axes = {}
