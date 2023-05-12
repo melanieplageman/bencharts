@@ -60,7 +60,7 @@ def informed_extract_to_df(exprs, text, timeline):
 
     for name, data_expr in exprs.items():
         data = data_expr(text)
-        if data is None:
+        if not data:
             continue
         df = pd.DataFrame(data)
         df[timeline] = pd.to_datetime(df[timeline], utc=True)
