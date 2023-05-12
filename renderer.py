@@ -14,7 +14,6 @@ class Renderer:
         # relabels are used on Metadata to make long metadata names shorter for
         # labels and titles.
         self.relabels = relabels
-        # TODO: finish moving occludes here -- including from other places
         self.occludes = occludes
 
 
@@ -57,27 +56,24 @@ class AxesRenderer(Renderer):
         renderer(renderers, run_group, ax, indent=indent + 2)
 
 
-# TODO: check diff from master
 class PlotRenderer(Renderer):
     """
     Renders Runs as plots in Matplotlib. A Pandas DataFrame is created for
     every Run's data of the passed in Run or Run children of the passed-in
     RunGroup on the passed-in axis.
     """
-    def __init__(self, all_ys, *args, timebounds=(0, None), **kwargs):
+    def __init__(self, *args, timebounds=(0, None), **kwargs):
         super().__init__(*args, **kwargs)
-        self.all_ys = all_ys
         self.timebounds = timebounds
 
-    def __call__(self, renderers, run_group: Run | RunGroup, ax, set_title=False, indent=0):
-
+    def __call__(self, renderers, run_group: Run | RunGroup, ax, subject=None, set_title=False, indent=0):
         if isinstance(run_group, Run):
             run = run_group
             df = run.all_data[self.timebounds[0]:self.timebounds[1]]
             df = df.interpolate(method='linear')
-            df.plot(y=self.all_ys[0], ax=ax, label=self.label(run))
+            df.plot(y=subject, ax=ax, ylabel=subject, label=self.label(run))
             # Display each tick on the X axis as MM:SS
-            # ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
+            ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
             return
 
         if isinstance(run_group.children[0], Run):
@@ -85,13 +81,10 @@ class PlotRenderer(Renderer):
         else:
             runs = self.flatten(run_group)
 
+        # TODO: is there a less hacky way to make this work for both multi and
+        # singular than hard-coding in the single column thing?
         for run in runs:
-            self(None, run, ax, indent=indent + 2)
-
-        # filenames = {result.run_id: result.run.filename for result in results}
-        # pdf = pd.Series(filenames)
-        # pd.set_option('display.max_colwidth', None)
-        # print(pdf)
+            self(None, run, ax, subject=run.all_data.columns[0], indent=indent + 2)
 
     def label(self, run):
         prefix = f'Run {str(run.id)}'
@@ -118,7 +111,7 @@ class PlotRenderer(Renderer):
         return output
 
 
-def render(benchart, figure, all_ys, timebounds, relabels):
+def render(benchart, figure, timebounds, relabels):
     root = benchart.run()
 
     # The title often includes many shared attributes. This will be
@@ -129,7 +122,7 @@ def render(benchart, figure, all_ys, timebounds, relabels):
         SubfigureRenderer(relabels),
         *benchart.renderers,
         AxesRenderer(relabels),
-        PlotRenderer(all_ys, timebounds=timebounds, occludes=benchart.ignores, relabels=relabels),
+        PlotRenderer(timebounds=timebounds, occludes=benchart.ignores, relabels=relabels),
     ]
 
     renderers[0](renderers[1:], root, figure, set_title=False)
@@ -176,99 +169,70 @@ def render_print_tree(root, occludes=None, relabels=None, indent=0):
     for node in root.children:
         render_print_tree(node, occludes, relabels, indent + 2)
 
-class NullRenderer(Renderer):
-    def __call__(self, renderers, run_group, timebounds, figsize):
-        renderer, *renderers = renderers
 
-        figure = plt.figure(figsize=figsize)
+# TODO: figure out how to do this title better -- maybe by changing how
+# accumulated_metadata works
+def extra_title_expr(l):
+    return ''
 
-        renderer(renderers, run_group, figure, timebounds=timebounds)
-
-class FigureAllYsRenderer(Renderer):
-    def __init__(self, all_ys, *args, **kwargs):
+class LeafParentRenderer(Renderer):
+    def __init__(self, root_metadata, *args, extra_title_expr=extra_title_expr, **kwargs):
         super().__init__(*args, **kwargs)
-        self.all_ys = all_ys
+        self.extra_title_expr = extra_title_expr
+        self.root_metadata = root_metadata
 
-    def __call__(self, renderers, run_group, figure, timebounds):
-        renderer, *renderers = renderers
+    def __call__(self, renderers, run_group, sorted_prefixes=[], title=''):
+        if isinstance(run_group, Run):
+            return
 
-        axes = {}
-        for i, key in enumerate(self.all_ys, 1):
-            axes[key] = figure.add_subplot(len(self.all_ys), 1, i)
-
-        for y in self.all_ys:
+        if hasattr(run_group, 'children') and isinstance(run_group.children[0], Run):
+            renderer, *renderers = renderers
+            cols = set()
             for child in run_group.children:
-                renderer(renderers, child, axes[y], timebounds=timebounds)
+                cols.update(list(child.all_data.columns))
 
-def render_multi2(benchart, all_ys, figsize, timebounds, relabels):
+            title = self.extra_title_expr(run_group.children) + \
+                run_group.accumulated_metadata.minus(self.root_metadata).pretty_print()
+
+            cols = sorted(list(cols), key=lambda x: sorted_prefixes.index(x.split('_')[0]))
+            renderer(renderers, run_group, cols, title=title)
+        else:
+            for child in run_group.children:
+                self(renderers, child, sorted_prefixes)
+
+
+class MultiAxesRenderer(Renderer):
+    def __init__(self, axes_expr, *args, figwidth=15, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.figwidth = figwidth
+        self.axes_expr = axes_expr
+
+    def __call__(self, renderers, run_group, axes_subjects, title=''):
+        axes = {}
+        figure = plt.figure(figsize=(self.figwidth, len(axes_subjects) * 4))
+        first_ax = axes[axes_subjects[0]] = figure.add_subplot(len(axes_subjects), 1, 1)
+
+        for i, subject in enumerate(axes_subjects[1:], 2):
+            axes[subject] = figure.add_subplot(len(axes_subjects), 1, i, sharex=first_ax)
+
+        renderer, *renderers = renderers
+        for subject in axes_subjects:
+            for child in run_group.children:
+                renderer(renderer, child, axes[subject], subject)
+
+        axes[axes_subjects[0]].set_title("\n".join(wrap(title)))
+        self.axes_expr(axes)
+
+
+def render_multi(benchart, figwidth, sorted_prefixes, timebounds, relabels,
+                  extra_title_expr, axes_expr):
     root = benchart.run()
     title = ''
     renderers = [
-        NullRenderer(relabels),
-        *benchart.renderers,
-        FigureAllYsRenderer(all_ys),
-        PlotRenderer(all_ys, relabels),
+        LeafParentRenderer(root.metadata, relabels=relabels, extra_title_expr=extra_title_expr),
+        MultiAxesRenderer(figwidth=figwidth, axes_expr=axes_expr),
+        PlotRenderer(occludes=benchart.ignores, relabels=relabels,
+                           timebounds=timebounds),
     ]
-    renderers[0](renderers[1:], root, timebounds, figsize)
+    renderers[0](renderers[1:], root, sorted_prefixes=sorted_prefixes, title='')
     return root, title
-
-
-# TODO: render_multi() should subclass a Renderer probably
-def render_multi(benchart, timebounds, sorted_prefixes, figwidth, extra_title_expr):
-    root = benchart.run()
-    all_axes = []
-    # Since we are making a new figure and set of axes for each leaf parent, we
-    # can't use a DFT to plot this. We could do a BFT but it seems easier to
-    # just get all the leaf parents in a list and then plot their runs.
-    leaf_parents = []
-    get_all_leaf_parents(root, leaf_parents)
-    for parent in leaf_parents:
-        cols = set()
-        for child in parent.children:
-            cols.update(list(child.all_data.columns))
-
-        cols = sorted(list(cols), key=lambda x: sorted_prefixes.index(x.split('_')[0]))
-
-        figure = plt.figure(figsize=(figwidth, len(cols) * 4))
-        axes = {}
-        for i, col in enumerate(cols, 1):
-            axes[col] = figure.add_subplot(len(cols), 1, i)
-
-        axes[cols[0]].set_title("\n".join(wrap(
-            extra_title_expr(parent.children) + \
-            parent.accumulated_metadata.minus(root.metadata).pretty_print()
-            ))
-        )
-
-        for child in parent.children:
-            for col in child.all_data.columns:
-                df = child.all_data[timebounds[0]:timebounds[1]]
-                df = df.interpolate(method='linear')
-                df.plot(y=col, ax=axes[col], ylabel=col,
-                        sharex=axes[cols[0]], label=get_label(child,
-                                                                benchart.ignores,
-                                                                {}))
-        all_axes.append(axes)
-    return all_axes
-
-def get_label(run, occludes, relabels):
-    prefix = f'Run {str(run.id)}'
-    show_attrs = run.metadata.keys() - run.rungroup.accumulated_attrs
-    # Attributes which will be occluded must be passed as ignores into
-    # BenchArt.ignore() so that they are not used in grouping Runs into
-    # RunGroups. Occludes are not included in the final label for Runs in a
-    # chart.
-    if occludes:
-        show_attrs -= occludes
-    if not show_attrs:
-        return prefix
-    subset = run.metadata.subset(show_attrs)
-    return prefix + ': ' + do_relabel_str(subset, relabels)
-
-# TODO: make this not mutate the list probably
-def get_all_leaf_parents(node, leaf_parents):
-    if hasattr(node, 'children') and isinstance(node.children[0], Run):
-        leaf_parents.append(node)
-        return
-    for child in node.children:
-        get_all_leaf_parents(child, leaf_parents)
