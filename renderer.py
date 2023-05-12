@@ -10,10 +10,12 @@ DEBUG = False
 
 
 class Renderer:
-    def __init__(self, relabels={}):
+    def __init__(self, occludes=set(), relabels={}):
         # relabels are used on Metadata to make long metadata names shorter for
         # labels and titles.
         self.relabels = relabels
+        # TODO: finish moving occludes here -- including from other places
+        self.occludes = occludes
 
 
 class SubfigureRenderer(Renderer):
@@ -22,7 +24,7 @@ class SubfigureRenderer(Renderer):
     for every RunGroup child of the passed-in run_group within the passed-in
     parent figure or subfigure.
     """
-    def __call__(self, renderers, run_group, subfig, timebounds=(0,None), set_title=True, indent=0):
+    def __call__(self, renderers, run_group, subfig, set_title=True, indent=0):
         renderer, *renderers = renderers
 
         if set_title:
@@ -35,7 +37,7 @@ class SubfigureRenderer(Renderer):
                                     squeeze=False)
 
         for i, child in enumerate(run_group.children):
-            renderer(renderers, child, subfigs[i][0], timebounds=timebounds,
+            renderer(renderers, child, subfigs[i][0],
                      indent=indent + 2)
 
 
@@ -45,32 +47,33 @@ class AxesRenderer(Renderer):
     subplot) for every child of the passed-in RunGroup within the passed-in
     subfigure.
     """
-    def __call__(self, renderers, run_group, subfig, timebounds=(0,None), set_title=True, indent=0):
+    def __call__(self, renderers, run_group, subfig, set_title=True, indent=0):
         renderer, *renderers = renderers
 
         ax = subfig.add_subplot()
         if set_title:
             ax.set_title(do_relabel_str(run_group.metadata, self.relabels))
 
-        renderer(renderers, run_group, ax, timebounds=timebounds, indent=indent + 2)
+        renderer(renderers, run_group, ax, indent=indent + 2)
 
 
+# TODO: check diff from master
 class PlotRenderer(Renderer):
     """
     Renders Runs as plots in Matplotlib. A Pandas DataFrame is created for
     every Run's data of the passed in Run or Run children of the passed-in
     RunGroup on the passed-in axis.
     """
-    def __init__(self, all_ys, *args, occludes=None, **kwargs):
+    def __init__(self, all_ys, *args, timebounds=(0, None), **kwargs):
         super().__init__(*args, **kwargs)
-        self.occludes = occludes
         self.all_ys = all_ys
+        self.timebounds = timebounds
 
-    def __call__(self, renderers, run_group: Run | RunGroup, ax, timebounds=(0,None), set_title=False, indent=0):
+    def __call__(self, renderers, run_group: Run | RunGroup, ax, set_title=False, indent=0):
 
         if isinstance(run_group, Run):
             run = run_group
-            df = run.all_data[timebounds[0]:timebounds[1]]
+            df = run.all_data[self.timebounds[0]:self.timebounds[1]]
             df = df.interpolate(method='linear')
             df.plot(y=self.all_ys[0], ax=ax, label=self.label(run))
             # Display each tick on the X axis as MM:SS
@@ -80,10 +83,10 @@ class PlotRenderer(Renderer):
         if isinstance(run_group.children[0], Run):
             runs = run_group.children
         else:
-            runs = self.flatten(run_group, timebounds)
+            runs = self.flatten(run_group)
 
         for run in runs:
-            self(None, run, ax, timebounds=timebounds, indent=indent + 2)
+            self(None, run, ax, indent=indent + 2)
 
         # filenames = {result.run_id: result.run.filename for result in results}
         # pdf = pd.Series(filenames)
@@ -105,13 +108,13 @@ class PlotRenderer(Renderer):
 
         return prefix + ': ' + do_relabel_str(subset, self.relabels)
 
-    def flatten(self, node, timebounds):
+    def flatten(self, node):
         if isinstance(node, Run):
             return [node]
 
         output = []
         for child in node.children:
-            output.extend(self.flatten(child, timebounds))
+            output.extend(self.flatten(child))
         return output
 
 
@@ -126,10 +129,10 @@ def render(benchart, figure, all_ys, timebounds, relabels):
         SubfigureRenderer(relabels),
         *benchart.renderers,
         AxesRenderer(relabels),
-        PlotRenderer(all_ys, relabels, occludes=benchart.ignores),
+        PlotRenderer(all_ys, timebounds=timebounds, occludes=benchart.ignores, relabels=relabels),
     ]
 
-    renderers[0](renderers[1:], root, figure, timebounds, set_title=False)
+    renderers[0](renderers[1:], root, figure, set_title=False)
     return root, title
 
 def do_relabel_str(metadata, relabels):
