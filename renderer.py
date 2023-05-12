@@ -2,6 +2,7 @@
 
 import pandas as pd
 import matplotlib.pyplot as plt
+from textwrap import wrap
 from benchart import Run, RunGroup
 import collections
 
@@ -230,9 +231,10 @@ def render_multi(benchart, timebounds, sorted_prefixes, figwidth, extra_title_ex
         for i, col in enumerate(cols, 1):
             axes[col] = figure.add_subplot(len(cols), 1, i)
 
-        axes[cols[0]].set_title(
+        axes[cols[0]].set_title("\n".join(wrap(
             extra_title_expr(parent.children) + \
             parent.accumulated_metadata.minus(root.metadata).pretty_print()
+            ))
         )
 
         for child in parent.children:
