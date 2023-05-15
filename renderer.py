@@ -71,6 +71,8 @@ class PlotRenderer(Renderer):
             run = run_group
             df = run.all_data[self.timebounds[0]:self.timebounds[1]]
             df = df.interpolate(method='linear')
+            if subject not in df.columns:
+                return
             df.plot(y=subject, ax=ax, ylabel=subject, label=self.label(run))
             # Display each tick on the X axis as MM:SS
             ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
