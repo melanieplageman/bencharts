@@ -86,6 +86,8 @@ class PlotRenderer(Renderer):
         # TODO: is there a less hacky way to make this work for both multi and
         # singular than hard-coding in the single column thing?
         for run in runs:
+            if len(run.all_data.columns) == 0:
+                continue
             self(None, run, ax, subject=run.all_data.columns[0], indent=indent + 2)
 
     def label(self, run):
