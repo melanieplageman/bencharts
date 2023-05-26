@@ -1,6 +1,8 @@
 #!/usr/local/bin/python3
 
+from datetime import timedelta
 import pandas as pd
+import matplotlib as mp
 import matplotlib.pyplot as plt
 from textwrap import wrap
 from benchart import Run, RunGroup
@@ -75,7 +77,10 @@ class PlotRenderer(Renderer):
                 return
             df.plot(y=subject, ax=ax, ylabel=subject, label=self.label(run))
             # Display each tick on the X axis as MM:SS
-            ax.xaxis.set_major_formatter(lambda x, pos: "%02d:%02d" % (x // 60, x % 60))
+            ax.tick_params(axis='x', labelrotation=0)
+            ax.xaxis.set_major_formatter(lambda x, _: "%02d:%02d" % (x // 60, x % 60))
+            for label in ax.get_xticklabels():
+                label.set_horizontalalignment('center')
             return
 
         if isinstance(run_group.children[0], Run):
@@ -212,9 +217,20 @@ class MultiAxesRenderer(Renderer):
         self.axes_expr = axes_expr
 
     def __call__(self, renderers, run_group, axes_subjects, title=''):
-        axes = {}
         figure = plt.figure(figsize=(self.figwidth, len(axes_subjects) * 4))
+
+        axes = {}
         first_ax = axes[axes_subjects[0]] = figure.add_subplot(len(axes_subjects), 1, 1)
+
+        # Calculate the union of all timelines for this rungroup. We need to
+        # find the limits of the combined timeline so that the location of the
+        # ticks don't just depend on what happens to be plotted on first_ax.
+        # The actual limit is set with axes.set_xlim() which has to be numeric
+        # despite the fact that we're plotting a TimedeltaIndex.
+        timeline = pd.TimedeltaIndex([])
+        for run in run_group.iterruns():
+            timeline = timeline.union(run.all_data.index)
+        first_ax.set_xlim(xmin=0, xmax=timeline.max().total_seconds())
 
         for i, subject in enumerate(axes_subjects[1:], 2):
             axes[subject] = figure.add_subplot(len(axes_subjects), 1, i, sharex=first_ax)
