@@ -72,10 +72,23 @@ class PlotRenderer(Renderer):
         if isinstance(run_group, Run):
             run = run_group
             df = run.all_data[self.timebounds[0]:self.timebounds[1]]
-            df = df.interpolate(method='linear')
-            if subject not in df.columns:
+            if subject is None or subject not in df.columns:
                 return
-            df.plot(y=subject, ax=ax, ylabel=subject, label=self.label(run))
+
+            df = df[[subject]].copy()
+
+            if subject.startswith('waits'):
+                kind = 'area'
+                df = df.rolling('5s').mean()
+            else:
+                kind = 'line'
+                df = df.interpolate(method='linear')
+
+            df.plot(y=subject, kind=kind, ax=ax, ylabel=subject, label=self.label(run))
+
+            # if subject == 'pgbench_tps':
+            #     df = df.rolling('5s').mean()
+
             # Display each tick on the X axis as MM:SS
             ax.tick_params(axis='x', labelrotation=0)
             ax.xaxis.set_major_formatter(lambda x, _: "%02d:%02d" % (x // 60, x % 60))
@@ -235,6 +248,8 @@ class MultiAxesRenderer(Renderer):
         for i, subject in enumerate(axes_subjects[1:], 2):
             axes[subject] = figure.add_subplot(len(axes_subjects), 1, i, sharex=first_ax)
 
+        for child in run_group.children:
+            print(f"Run: {child.id}. filename: {child.filename}")
         renderer, *renderers = renderers
         for subject in axes_subjects:
             for child in run_group.children:
