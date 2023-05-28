@@ -79,7 +79,7 @@ class PlotRenderer(Renderer):
 
             if subject.startswith('waits'):
                 kind = 'area'
-                df = df.rolling('5s').mean()
+                df = df.rolling('2s').mean()
             else:
                 kind = 'line'
                 df = df.interpolate(method='linear')
