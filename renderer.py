@@ -84,16 +84,12 @@ class PlotRenderer(Renderer):
                 kind = 'line'
                 df = df.interpolate(method='linear')
 
+            df.index = df.index.map(lambda t: t.total_seconds())
             df.plot(y=subject, kind=kind, ax=ax, ylabel=subject, label=self.label(run))
 
             # if subject == 'pgbench_tps':
             #     df = df.rolling('5s').mean()
 
-            # Display each tick on the X axis as MM:SS
-            ax.tick_params(axis='x', labelrotation=0)
-            ax.xaxis.set_major_formatter(lambda x, _: "%02d:%02d" % (x // 60, x % 60))
-            for label in ax.get_xticklabels():
-                label.set_horizontalalignment('center')
             return
 
         if isinstance(run_group.children[0], Run):
@@ -244,6 +240,12 @@ class MultiAxesRenderer(Renderer):
         for run in run_group.iterruns():
             timeline = timeline.union(run.all_data.index)
         first_ax.set_xlim(xmin=0, xmax=timeline.max().total_seconds())
+
+        # Display each tick on the X axis as MM:SS
+        first_ax.tick_params(axis='x', labelrotation=0)
+        first_ax.xaxis.set_major_formatter(lambda x, _: "%02d:%02d" % (x // 60, x % 60))
+        for label in first_ax.get_xticklabels():
+            label.set_horizontalalignment('center')
 
         for i, subject in enumerate(axes_subjects[1:], 2):
             axes[subject] = figure.add_subplot(len(axes_subjects), 1, i, sharex=first_ax)
